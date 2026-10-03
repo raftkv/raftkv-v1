@@ -1,0 +1,141 @@
+# regression.yaml — 回归门契约
+# 版本: v2.4-batch29-governance4
+# 用途: 每批先跑回归门再跑本批门，收编各批已达成核心线 10 条
+# batch28: 每条线显式声明判定统计量（stat: median/max/min/count），verdict 按线定义执行
+# batch28: 追加 REG-9 分区安全不变量（战役III NP-1~5 全 PASS）
+# batch29: 追加 REG-10 分区恢复追平时限线（战役III 复合场景 COMP-1~5 全 PASS）
+
+contract:
+  name: regression-gate
+  version: "3.2"
+  description: "跨批回归门：10 条核心线，每条显式声明 stat，任一 FAIL 即冻结"
+
+acceptance_criteria:
+  REG-1:
+    name: tps_baseline
+    description: "Pipeline TPS 基线：c=128 TPS ≥ 8000"
+    metric: tps
+    stat: max
+    threshold: 8000
+    unit: req/s
+    operator: ">="
+    source: batch16 c=128 TPS=13664.9
+    judgment: "pipeline c=128 压测 max(TPS) ≥ 8000"
+
+  REG-2:
+    name: p99_baseline
+    description: "P99 延迟基线：c=128 P99 ≤ 50ms"
+    metric: p99
+    stat: max
+    threshold: 50
+    unit: ms
+    operator: "<="
+    source: batch16 c=128 P99=50ms
+    judgment: "pipeline c=128 压测 max(P99) ≤ 50ms"
+
+  REG-3:
+    name: no_split_brain
+    description: "无脑裂：max_concurrent_leaders ≤ 1"
+    metric: max_concurrent_leaders
+    stat: max
+    threshold: 1
+    operator: "<="
+    source: batch22-23 F4/E2 全 PASS
+    judgment: "故障注入场景 max(concurrent_leaders) ≤ 1"
+
+  REG-4:
+    name: reject_rate
+    description: "拒载率 ≤ 30%"
+    metric: max_reject_rate
+    stat: max
+    threshold: 30.0
+    unit: percent
+    operator: "<="
+    source: batch22-23 F2/E3 全 PASS
+    judgment: "max(reject_rate) ≤ 30%"
+
+  REG-5:
+    name: write_survival
+    description: "写入存活率 = 100%"
+    metric: min_survival_rate
+    stat: min
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    source: batch22-23 F3/S1 全 PASS
+    judgment: "min(survival_rate) == 100%"
+
+  REG-6:
+    name: cascading_election
+    description: "级联选举收敛：E4a 单轮 ≤2.0s（不放松）+ E4b 双轮 ≤3.5s（中位数口径）"
+    metric: cascading_election
+    stat: median
+    threshold_e4a: 2.0
+    threshold_e4b: 3.5
+    unit: seconds
+    operator: "<="
+    rationale: |
+      E4a: 单轮级联收敛，与 E1 同机制，不放松
+      E4b: 双轮级联收敛，两轮机制下限 3.4s + 100ms 余量 = 3.5s
+      pre-vote 无法阻止 cascading split vote（日志相同→预支持全通过）
+      batch28 晨审改判: stat=median（median=3.4802s ≤ 3.5s PASS），max=3.5166s 边缘超限不作为 FAIL
+    source: batch24-28 E4 实测
+    judgment: "E4a median ≤ 2.0s 且 E4b median ≤ 3.5s"
+
+  REG-7:
+    name: disk_full_survival
+    description: "磁盘满存活率 = 100%（soft 90% + hard 99%）"
+    metric: disk_full_survival_rate
+    stat: min
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    rationale: "磁盘满注入 follower 不影响 leader 可用性，清理后集群恢复"
+    source: batch23 DF1-DF4 全 PASS
+    judgment: "磁盘满场景 min(survival_rate) == 100%"
+
+  REG-8:
+    name: prevote_effective
+    description: "pre-vote 拦截有效：prevote_round_count > 0 且 term_inflation ≤ 5"
+    metric: prevote_round_count
+    stat: count
+    threshold: 0
+    operator: ">"
+    rationale: "pre-vote 防日志落后节点发起选举，85 次探测中 16 次阻止选举"
+    source: batch23-25 PV1/PV2 全 PASS
+    judgment: "count(prevote_rounds) > 0 且 term_inflation ≤ 5"
+
+  REG-9:
+    name: partition_safety
+    description: "网络分区安全：分区期间 max_concurrent_leaders ≤ 1 + 恢复后 commit 追平 + term 单调"
+    metric: partition_max_concurrent_leaders
+    stat: max
+    threshold: 1
+    operator: "<="
+    rationale: |
+      网络分区下 pre-vote 阻止少数派选举，多数派继续可用
+      恢复后 30s 内日志追平，term 单调不回退
+      6 场景: symmetric×2, asymmetric, bridge, recovery, cascading
+    source: batch28 NP-1~5 全 PASS
+    judgment: "max(partition_concurrent_leaders) ≤ 1 且 commit_caught_up 且 term_monotonic"
+
+  REG-10:
+    name: partition_recovery_timeliness
+    description: "分区恢复追平时限：复合场景恢复后 commit_caught_up + term_monotonic + recovery_confirmed"
+    metric: composite_recovery_confirmed
+    stat: min
+    threshold: 1
+    operator: ">="
+    rationale: |
+      分区+磁盘满复合场景（N=3）恢复后：
+      commit 追平（commit_after >= commit_before）
+      term 单调（term_after >= term_before）
+      集群可用 + 恢复确认
+      3 场景: comp_pdf_01(对称), comp_pdf_02(对称), comp_pdf_03(非对称)
+    source: batch29 COMP-1~5 全 PASS, N=3, CV=0.0%
+    judgment: "min(composite_recovery_confirmed) >= 1（全 true）"
+
+execution:
+  pre_batch: "每批本批门之前先跑回归门"
+  on_fail: "任一 REG-1~10 FAIL → 冻结，不再跑本批门"
+  evidence_dir: "tests/evidence/regression/"

@@ -1,0 +1,62 @@
+# =========================================================================
+# RaftKV 确定性引擎 — 主配置文件
+# =========================================================================
+
+# --- Raft 共识配置 ---
+[Raft]
+ElectionTimeoutMin = 150
+ElectionTimeoutMax = 300
+HeartbeatInterval  = 50
+ClusterSize        = 5
+
+# --- WAL 持久化配置 ---
+[WAL]
+Enable         = true
+Path           = "/data/raft.wal"
+PreallocSize   = 1073741824  # 1GB
+MaxBatch       = 256
+FlushInterval  = "5ms"
+
+# --- SM4 加密配置 ---
+[SM4]
+Enable = true
+# 密钥来源: file | env | kms
+KeySource = "file"
+KeyPath   = "/etc/raftkv/sm4.key"
+
+# --- 批量提案配置 ---
+[BatchProposer]
+BatchSize    = 64
+BatchWindow  = "200us"
+
+# =========================================================================
+# DataSink — 金融数据库落盘配置
+# =========================================================================
+[DataSink]
+# 是否启用 Raft 日志 → TiDB/MySQL 异步落盘
+Enable = true
+
+# 数据库连接串：必须由环境变量 SINK_DSN 提供，禁止硬编码凭据
+# 格式: user:password@tcp(host:port)/dbname?params
+DSN = "${SINK_DSN}"
+
+# 批量写入条数 (攒满此条数触发一次批量 INSERT)
+BatchSize = 1000
+
+# 刷新间隔 (未满 BatchSize 时按此间隔定时刷新)
+FlushInterval = "500ms"
+
+# 写入通道缓冲大小 (非阻塞通道容量)
+ChannelSize = 4096
+
+# 本地回退队列最大条数 (DB 故障时缓存上限)
+MaxFallback = 100000
+
+# 目标表名
+TableName = "raft_logs"
+
+# 单批最大重试次数
+MaxRetries = 3
+
+# 重试间隔
+RetryInterval = "1s"

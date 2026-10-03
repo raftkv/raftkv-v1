@@ -1,0 +1,16 @@
+services:
+  node-1:
+    environment:
+      - IN_FLIGHT_CAP=999999
+  node-2:
+    environment:
+      - IN_FLIGHT_CAP=999999
+  node-3:
+    environment:
+      - IN_FLIGHT_CAP=999999
+  node-4:
+    environment:
+      - IN_FLIGHT_CAP=999999
+  node-5:
+    environment:
+      - IN_FLIGHT_CAP=999999

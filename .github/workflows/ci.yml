@@ -1,0 +1,91 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+
+      - name: Build
+        run: go build ./...
+
+      - name: Build CLI tools
+        run: |
+          go build ./cmd/chaos_injector
+          go build ./cmd/health_checker
+
+  vet:
+    name: Vet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+
+      - name: Vet
+        run: go vet ./...
+
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.24.0"
+
+      - name: Set SM4 key  # TEST KEY ONLY - do not use in production
+        run: echo "SM4_KEY=raftkv_sm4test01" >> $GITHUB_ENV
+
+      - name: Run tests
+        run: go test . -skip TestRealGRPCConnectivity -count=1 -v
+
+      - name: Run pkg tests
+        run: go test ./pkg/... -count=1 -v
+
+  regression-gate:
+    name: Regression Gate (10 lines)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install PyYAML
+        run: pip install pyyaml
+
+      - name: Check regression gate config
+        run: |
+          python3 -c "
+          import yaml, sys
+          with open('tests/contracts/regression.yaml') as f:
+              reg = yaml.safe_load(f)
+          criteria = reg.get('acceptance_criteria', {})
+          print(f'Regression gate: {len(criteria)} lines')
+          for k, v in criteria.items():
+              print(f'  {k}: {v[\"name\"]} — {v[\"description\"]}')
+          if len(criteria) < 10:
+              print('ERROR: Expected 10 regression lines', file=sys.stderr)
+              sys.exit(1)
+          print('OK: 10 regression lines present')
+          "

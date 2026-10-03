@@ -1,0 +1,16 @@
+services:
+  node-1:
+    environment:
+      - LATENCY_DECOMP=true
+  node-2:
+    environment:
+      - LATENCY_DECOMP=true
+  node-3:
+    environment:
+      - LATENCY_DECOMP=true
+  node-4:
+    environment:
+      - LATENCY_DECOMP=true
+  node-5:
+    environment:
+      - LATENCY_DECOMP=true

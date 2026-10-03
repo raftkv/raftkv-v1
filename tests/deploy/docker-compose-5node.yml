@@ -1,0 +1,170 @@
+# =========================================================================
+# RaftKV — 5节点Raft集群部署compose（D3-batch0R基线）
+#
+# 基于D2部署compose(docker-compose.yml)扩展至5节点，匹配原始设计(docker-compose.yml根目录)
+#
+# === 与根目录docker-compose.yml的差异清单（D3-audit-reply闭环1）===
+# 本文件不是根compose的等价复制，以下为适配性改写（详见docs/D3-AUDIT-REPLY.md闭环1）：
+#   1. 镜像来源: image:${IMAGE_NAME}(ci-knife) vs build:. — ci-knife已验证含/health/live
+#   2. 端口策略: 全节点相同GRPC(9500)+无host暴露 vs 每节点不同端口+host映射 — D2部署模式
+#   3. SM4_KEY: 有 vs 无 — ci-knife为fail-closed需SM4_KEY做数据加密
+#   4. license挂载: 有 vs 无 — ci-knife需license.key做授权验证(fail-closed)
+#   5. frontend: 无 vs 有(nginx:alpine) — 冒烟测试聚焦Raft集群核心
+#   6. PEERS格式: 容器名+相同端口 vs 容器名+不同端口 — D2部署模式
+#   7. WAL卷: 有 vs 无 — ci-knife需WAL持久化目录
+#   8. HTTP_BIND: 有(0.0.0.0) vs 无 — ci-knife需显式绑定
+# 改写原因: 从build:.(旧版本镜像)迁移到ci-knife(fail-closed镜像)时必须补充运行时依赖
+# SM4_KEY出处: tests/deploy/.sm4_key (openssl rand -hex 16生成, gitignored)
+# license出处: ${LICENSE_DIR}/node-{1..5}.key (RSA-2048商业授权, 各817字节)
+# =========================================================================
+#
+# 用法: docker compose -p deploy5 -f docker-compose-5node.yml --env-file deploy.env up -d
+# =========================================================================
+
+services:
+
+  node-1:
+    image: ${IMAGE_NAME}
+    container_name: raft-node-1
+    networks:
+      raftkv-net:
+        aliases:
+          - node-1
+    environment:
+      - RAFTKV_FP_ANCHOR=${FP_ANCHOR}
+      - SM4_KEY=${SM4_KEY}
+      - NODE_ID=node-1
+      - GRPC_PORT=${GRPC_PORT}
+      - HTTP_PORT=${HTTP_PORT}
+      - HTTP_BIND=0.0.0.0
+      - PEERS=node-2=node-2:${GRPC_PORT},node-3=node-3:${GRPC_PORT},node-4=node-4:${GRPC_PORT},node-5=node-5:${GRPC_PORT}
+      - LICENSE_FAIL_MODE=closed
+      - IDEM_TOKEN_CAPACITY=5
+    volumes:
+      - ${LICENSE_DIR}/node-1.key:/app/license.key:ro
+      - wal-node-1:/app/wal-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  node-2:
+    image: ${IMAGE_NAME}
+    container_name: raft-node-2
+    networks:
+      raftkv-net:
+        aliases:
+          - node-2
+    environment:
+      - RAFTKV_FP_ANCHOR=${FP_ANCHOR}
+      - SM4_KEY=${SM4_KEY}
+      - NODE_ID=node-2
+      - GRPC_PORT=${GRPC_PORT}
+      - HTTP_PORT=${HTTP_PORT}
+      - HTTP_BIND=0.0.0.0
+      - PEERS=node-1=node-1:${GRPC_PORT},node-3=node-3:${GRPC_PORT},node-4=node-4:${GRPC_PORT},node-5=node-5:${GRPC_PORT}
+      - LICENSE_FAIL_MODE=closed
+      - IDEM_TOKEN_CAPACITY=5
+    volumes:
+      - ${LICENSE_DIR}/node-2.key:/app/license.key:ro
+      - wal-node-2:/app/wal-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  node-3:
+    image: ${IMAGE_NAME}
+    container_name: raft-node-3
+    networks:
+      raftkv-net:
+        aliases:
+          - node-3
+    environment:
+      - RAFTKV_FP_ANCHOR=${FP_ANCHOR}
+      - SM4_KEY=${SM4_KEY}
+      - NODE_ID=node-3
+      - GRPC_PORT=${GRPC_PORT}
+      - HTTP_PORT=${HTTP_PORT}
+      - HTTP_BIND=0.0.0.0
+      - PEERS=node-1=node-1:${GRPC_PORT},node-2=node-2:${GRPC_PORT},node-4=node-4:${GRPC_PORT},node-5=node-5:${GRPC_PORT}
+      - LICENSE_FAIL_MODE=closed
+      - IDEM_TOKEN_CAPACITY=5
+    volumes:
+      - ${LICENSE_DIR}/node-3.key:/app/license.key:ro
+      - wal-node-3:/app/wal-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  node-4:
+    image: ${IMAGE_NAME}
+    container_name: raft-node-4
+    networks:
+      raftkv-net:
+        aliases:
+          - node-4
+    environment:
+      - RAFTKV_FP_ANCHOR=${FP_ANCHOR}
+      - SM4_KEY=${SM4_KEY}
+      - NODE_ID=node-4
+      - GRPC_PORT=${GRPC_PORT}
+      - HTTP_PORT=${HTTP_PORT}
+      - HTTP_BIND=0.0.0.0
+      - PEERS=node-1=node-1:${GRPC_PORT},node-2=node-2:${GRPC_PORT},node-3=node-3:${GRPC_PORT},node-5=node-5:${GRPC_PORT}
+      - LICENSE_FAIL_MODE=closed
+      - IDEM_TOKEN_CAPACITY=5
+    volumes:
+      - ${LICENSE_DIR}/node-4.key:/app/license.key:ro
+      - wal-node-4:/app/wal-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  node-5:
+    image: ${IMAGE_NAME}
+    container_name: raft-node-5
+    networks:
+      raftkv-net:
+        aliases:
+          - node-5
+    environment:
+      - RAFTKV_FP_ANCHOR=${FP_ANCHOR}
+      - SM4_KEY=${SM4_KEY}
+      - NODE_ID=node-5
+      - GRPC_PORT=${GRPC_PORT}
+      - HTTP_PORT=${HTTP_PORT}
+      - HTTP_BIND=0.0.0.0
+      - PEERS=node-1=node-1:${GRPC_PORT},node-2=node-2:${GRPC_PORT},node-3=node-3:${GRPC_PORT},node-4=node-4:${GRPC_PORT}
+      - LICENSE_FAIL_MODE=closed
+      - IDEM_TOKEN_CAPACITY=5
+    volumes:
+      - ${LICENSE_DIR}/node-5.key:/app/license.key:ro
+      - wal-node-5:/app/wal-data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+networks:
+  raftkv-net:
+    driver: bridge
+
+volumes:
+  wal-node-1:
+  wal-node-2:
+  wal-node-3:
+  wal-node-4:
+  wal-node-5:

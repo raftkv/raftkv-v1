@@ -1,0 +1,41 @@
+services:
+  node-1:
+    image: ${IMAGE_NAME}
+    container_name: raft-node-1
+    networks:
+      - raftkv-net
+    environment:
+      - RAFTKV_FP_ANCHOR=${FP_ANCHOR}
+      - SM4_KEY=${SM4_KEY}
+      - NODE_ID=node-1
+      - GRPC_PORT=${GRPC_PORT}
+      - HTTP_PORT=${HTTP_PORT}
+      - HTTP_BIND=0.0.0.0
+      - PEERS=node-2=node-2:${GRPC_PORT}
+      - LICENSE_FAIL_MODE=closed
+    volumes:
+      - ${LICENSE_DIR}/node-1.key:/app/license.key:ro
+      - wal-node-1:/app/wal-data
+  node-2:
+    image: ${IMAGE_NAME}
+    container_name: raft-node-2
+    networks:
+      - raftkv-net
+    environment:
+      - RAFTKV_FP_ANCHOR=${FP_ANCHOR}
+      - SM4_KEY=${SM4_KEY}
+      - NODE_ID=node-2
+      - GRPC_PORT=${GRPC_PORT}
+      - HTTP_PORT=${HTTP_PORT}
+      - HTTP_BIND=0.0.0.0
+      - PEERS=node-1=node-1:${GRPC_PORT}
+      - LICENSE_FAIL_MODE=closed
+    volumes:
+      - ${LICENSE_DIR}/node-2.key:/app/license.key:ro
+      - wal-node-2:/app/wal-data
+networks:
+  raftkv-net:
+    driver: bridge
+volumes:
+  wal-node-1:
+  wal-node-2:

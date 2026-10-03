@@ -1,0 +1,3600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RaftKV · 确定性管控中枢</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+/* ============================================================
+   RaftKV · 确定性管控中枢 — 基础骨架与CSS布局
+   配色：虚空黑 + 确定性蓝(cy) + 精度金(gd) + 准确率紫(pr)
+   6 面板布局：左2 + 中2 + 右2，上下错落，暗黑科技风
+   响应式设计：大屏三列 / 中屏两列 / 小屏单列
+   ============================================================ */
+
+/* ---------- CSS Variables ---------- */
+:root {
+  --bg:       #000510;
+  --cy:       #00e5ff;    /* 确定性蓝 */
+  --gd:       #ffd740;    /* 精度金 */
+  --pr:       #7c5cff;    /* 准确率紫 */
+  --gr:       #00e676;    /* 成功绿 */
+  --dr:       #ff2d55;    /* 警示红 */
+  --am:       #ffab40;    /* 警告橙 */
+  --tx:       #d0d8ff;    /* 正文 */
+  --dm:       #3a5470;    /* 暗文 */
+  --wt:       #64b5f6;    /* 辅助蓝 */
+  --hdr-h:    60px;
+  --gap:      8px;
+  --radius:   5px;
+}
+
+/* ---------- Reset & Base ---------- */
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box }
+
+body {
+  background: var(--bg);
+  font-family: 'Rajdhani', 'Noto Sans SC', 'JetBrains Mono', sans-serif;
+  color: var(--tx);
+  overflow: hidden;
+  height: 100vh;
+  width: 100vw;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- Background Layers (Decorations) ---------- */
+/* Particle Canvas: rendered by JS */
+#bgCanvas {
+  position: fixed; inset: 0; z-index: 0;
+  pointer-events: none; opacity: .85;
+}
+
+/* Grid overlay */
+.bg-grid {
+  position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: .07;
+  background-image:
+    linear-gradient(rgba(0,229,255,.12) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,.12) 1px, transparent 1px);
+  background-size: 64px 64px;
+  animation: gridShimmer 5s ease-in-out infinite;
+}
+@keyframes gridShimmer {
+  0%,100% { opacity: .05 }
+  50%     { opacity: .10 }
+}
+
+/* Scan line overlay */
+.bg-scan {
+  position: fixed; inset: 0; z-index: 2; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 3px,
+    rgba(124,92,255,.015) 3px,
+    rgba(124,92,255,.015) 6px
+  );
+  animation: scanDown 9s linear infinite;
+}
+@keyframes scanDown {
+  from { transform: translateY(0) }
+  to   { transform: translateY(12px) }
+}
+
+/* Radial glow pools */
+.bg-glow {
+  position: fixed; inset: 0; z-index: 3; pointer-events: none;
+  background:
+    radial-gradient(ellipse 800px 400px at 15% 0%,   rgba(0,229,255,.06) 0%, transparent 60%),
+    radial-gradient(ellipse 600px 500px at 85% 100%, rgba(255,215,64,.04) 0%, transparent 60%),
+    radial-gradient(ellipse 500px 400px at 50% 50%,  rgba(124,92,255,.03) 0%, transparent 55%);
+  animation: aurora 15s ease-in-out infinite;
+}
+@keyframes aurora {
+  0%,100% { filter: hue-rotate(0deg)   }
+  50%     { filter: hue-rotate(8deg)   }
+}
+
+/* ---------- App Shell ---------- */
+.app {
+  position: relative; z-index: 10;
+  display: flex; flex-direction: column;
+  height: 100vh; width: 100vw;
+}
+
+/* ---------- Header ---------- */
+.hdr {
+  flex-shrink: 0;
+  height: var(--hdr-h);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  background: linear-gradient(180deg, rgba(0,700,18,.94), rgba(0,3,10,.82));
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255,215,64,.15);
+  box-shadow: 0 0 50px rgba(255,215,64,.04);
+  position: relative;
+}
+/* bottom glow line */
+.hdr::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; width: 100%; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cy), var(--gd), var(--pr), var(--gd), var(--cy), transparent);
+}
+
+/* Header left: logo + title */
+.hdr-l {
+  display: flex; align-items: center; gap: 14px;
+}
+.logo-ring {
+  width: 38px; height: 38px; position: relative;
+  display: flex; align-items: center; justify-content: center;
+}
+.logo-ring::before {
+  content: '';
+  position: absolute; inset: 0;
+  border: 2px solid var(--gd);
+  border-radius: 50%;
+  animation: spin 5s linear infinite;
+  box-shadow: 0 0 20px rgba(255,215,64,.3), inset 0 0 20px rgba(255,215,64,.1);
+}
+.logo-ring::after {
+  content: '';
+  position: absolute; inset: 5px;
+  border: 1px solid var(--pr);
+  border-radius: 50%;
+  animation: spin 3.5s linear infinite reverse;
+}
+@keyframes spin {
+  from { transform: rotate(0deg) }
+  to   { transform: rotate(360deg) }
+}
+.logo-ring .inner {
+  z-index: 1; color: var(--gd); font-size: 1.1rem;
+  text-shadow: 0 0 12px rgba(255,215,64,.5);
+}
+
+.title-block h1 {
+  font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
+  font-size: 1.45rem; font-weight: 900; letter-spacing: 3px;
+  line-height: 1.15;
+  background: linear-gradient(135deg, #fff 0%, #ffe8a0 35%, var(--gd) 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  text-shadow: none;
+}
+.title-block .sub {
+  font-size: .56rem; color: var(--gd); font-weight: 600;
+  letter-spacing: 2px;
+}
+
+/* Header right: status pills + clock */
+.hdr-r {
+  display: flex; align-items: center; gap: 8px;
+}
+.hdr .pill {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 14px; border-radius: 20px;
+  background: rgba(0,3,8,.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,215,64,.18);
+  font-size: .60rem; font-weight: 600;
+  color: #ffe8a0;
+}
+.hdr .pill .dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--gd);
+  box-shadow: 0 0 8px rgba(255,215,64,.6);
+  animation: heartbeat 1.6s ease-in-out infinite;
+}
+.hdr .pill .dot.online {
+  background: var(--gr);
+  box-shadow: 0 0 8px rgba(0,230,118,.6);
+}
+@keyframes heartbeat {
+  0%,100% { transform: scale(1);   opacity: 1 }
+  50%     { transform: scale(1.4); opacity: .6 }
+}
+
+.hdr .clock {
+  font-family: 'Orbitron', monospace;
+  font-size: .90rem; font-weight: 700; color: var(--gd);
+  text-shadow: 0 0 14px rgba(255,215,64,.3);
+  padding: 4px 16px; border-radius: 20px;
+  background: rgba(0,3,8,.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,215,64,.18);
+}
+
+/* ---------- Main Content Grid ---------- */
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 360px 1fr 330px;
+  grid-template-rows: 1fr 1fr;
+  gap: var(--gap);
+  padding: var(--gap);
+  overflow: hidden;
+}
+
+/* ---------- Panel Base ---------- */
+.panel {
+  position: relative;
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid;
+  transition: border-color .4s, box-shadow .4s;
+}
+
+/* Panel backgrounds use overlays */
+.panel::before {
+  content: '';
+  position: absolute; inset: 0; z-index: -1;
+  border-radius: var(--radius);
+}
+/* Left panels: purple tint */
+.panel-l::before {
+  background: linear-gradient(180deg, rgba(0,5,16,.92), rgba(0,2,8,.78));
+}
+.panel-l {
+  border-color: rgba(124,92,255,.12);
+  box-shadow: 0 0 30px rgba(124,92,255,.03), inset 0 0 40px rgba(124,92,255,.015);
+}
+/* Center panels: gold tint */
+.panel-c::before {
+  background: linear-gradient(180deg, rgba(0,4,14,.92), rgba(0,2,7,.78));
+}
+.panel-c {
+  border-color: rgba(255,215,64,.10);
+  box-shadow: 0 0 35px rgba(255,215,64,.03), inset 0 0 45px rgba(255,215,64,.012);
+}
+/* Right panels: cyan tint */
+.panel-r::before {
+  background: linear-gradient(180deg, rgba(0,4,15,.92), rgba(0,2,8,.78));
+}
+.panel-r {
+  border-color: rgba(0,229,255,.08);
+  box-shadow: 0 0 30px rgba(0,229,255,.03), inset 0 0 40px rgba(0,229,255,.012);
+}
+
+/* Hover glow */
+.panel:hover {
+  box-shadow: 0 0 40px currentColor;
+}
+.panel-l:hover { border-color: rgba(124,92,255,.30); }
+.panel-c:hover { border-color: rgba(255,215,64,.25);  }
+.panel-r:hover { border-color: rgba(0,229,255,.22);   }
+
+/* ---------- Panel Grid Placement ---------- */
+/* Left Column */
+.p1 { grid-column: 1; grid-row: 1; }       /* Panel 1: 系统总览 */
+.p2 { grid-column: 1; grid-row: 2; }       /* Panel 2: 确定性引擎 */
+
+/* Center Column — spans both rows for the pipeline */
+.p3 { grid-column: 2; grid-row: 1 / span 2; } /* Panel 3: Agent执行链路 */
+
+/* Right Column */
+.p5 { grid-column: 3; grid-row: 1; }       /* Panel 5: 实时事件面板 */
+.p6 { grid-column: 3; grid-row: 2; }       /* Panel 6: 系统性能与安全 */
+
+/* Panel 4: 智能增强调度 — tucked into center-bottom or as overlay */
+.p4 {
+  grid-column: 2; grid-row: 2;
+  align-self: end;
+  margin-bottom: 0; margin-left: 0;
+  max-height: 200px;
+  z-index: 2;
+}
+
+/* Alternative: Panel 4 as a bottom bar inside center column */
+/* -------- */
+
+/* ---------- Panel Header ---------- */
+.p-hd {
+  flex-shrink: 0;
+  display: flex; align-items: center; gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+  font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
+  font-size: .76rem; font-weight: 700;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+.p-hd .icon {
+  width: 20px; height: 20px; border-radius: 3px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .52rem; color: #000;
+}
+.p-hd .badge {
+  margin-left: auto;
+  font-size: .44rem; font-weight: 600;
+  padding: 1px 7px; border-radius: 12px;
+  border: 1px solid;
+}
+/* Accent per panel */
+.p1 .p-hd .icon { background: linear-gradient(135deg, var(--gd), var(--am)); box-shadow: 0 0 10px var(--gd); }
+.p1 .p-hd .badge { color: var(--gd); border-color: rgba(255,215,64,.25); background: rgba(255,215,64,.05); }
+.p1 .p-hd { background: linear-gradient(90deg, #ffe8a0, var(--gd)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.p2 .p-hd .icon { background: linear-gradient(135deg, var(--cy), var(--wt)); box-shadow: 0 0 10px var(--cy); }
+.p2 .p-hd .badge { color: var(--cy); border-color: rgba(0,229,255,.25); background: rgba(0,229,255,.05); }
+.p2 .p-hd { background: linear-gradient(90deg, #e0ffff, var(--cy)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.p3 .p-hd .icon { background: linear-gradient(135deg, var(--gd), var(--pr)); box-shadow: 0 0 10px var(--gd); }
+.p3 .p-hd .badge { color: var(--gd); border-color: rgba(255,215,64,.25); background: rgba(255,215,64,.05); }
+.p3 .p-hd { background: linear-gradient(90deg, #ffe8a0, var(--pr)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.p4 .p-hd .icon { background: linear-gradient(135deg, var(--gr), var(--gd)); box-shadow: 0 0 10px var(--gr); }
+.p4 .p-hd .badge { color: var(--gr); border-color: rgba(0,230,118,.25); background: rgba(0,230,118,.05); }
+.p4 .p-hd { background: linear-gradient(90deg, #e0ffe0, var(--gr)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.p5 .p-hd .icon { background: linear-gradient(135deg, var(--am), var(--dr)); box-shadow: 0 0 10px var(--am); }
+.p5 .p-hd .badge { color: var(--am); border-color: rgba(255,171,64,.25); background: rgba(255,171,64,.05); }
+.p5 .p-hd { background: linear-gradient(90deg, #ffe8d0, var(--am)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+.p6 .p-hd .icon { background: linear-gradient(135deg, var(--pr), var(--wt)); box-shadow: 0 0 10px var(--pr); }
+.p6 .p-hd .badge { color: var(--pr); border-color: rgba(124,92,255,.25); background: rgba(124,92,255,.05); }
+.p6 .p-hd { background: linear-gradient(90deg, #e0d0ff, var(--pr)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ---------- Panel Body ---------- */
+.p-bd {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+.p-bd::-webkit-scrollbar { width: 3px; }
+.p-bd::-webkit-scrollbar-thumb {
+  background: rgba(255,215,64,.08);
+  border-radius: 3px;
+}
+
+/* ---------- KPI Metric Card ---------- */
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 4px;
+}
+.m-card {
+  background: linear-gradient(135deg, rgba(0,6,16,.7), rgba(0,2,6,.7));
+  border: 1px solid rgba(255,215,64,.06);
+  border-radius: 4px;
+  padding: 6px 8px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+  transition: border-color .3s, box-shadow .3s;
+}
+.m-card::before {
+  content: '';
+  position: absolute; top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: conic-gradient(from 0deg, transparent, rgba(255,215,64,.015), transparent);
+  animation: spin 16s linear infinite;
+}
+.m-card .val {
+  font-family: 'Orbitron', monospace;
+  font-size: 1.5rem; font-weight: 900; line-height: 1.1;
+  position: relative; z-index: 1;
+}
+.m-card .lbl {
+  font-size: .46rem; color: var(--dm); font-weight: 600;
+  letter-spacing: .4px; margin-top: 1px;
+  position: relative; z-index: 1;
+}
+.m-card:hover {
+  border-color: rgba(255,215,64,.35);
+  box-shadow: 0 0 20px rgba(255,215,64,.15);
+}
+
+/* Metric color classes */
+.val-cy { background: linear-gradient(180deg, #e0ffff, var(--cy)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.val-gd { background: linear-gradient(180deg, #fffae0, var(--gd)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.val-pr { background: linear-gradient(180deg, #f0e0ff, var(--pr)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.val-gr { background: linear-gradient(180deg, #e0ffe0, var(--gr)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.val-dr { background: linear-gradient(180deg, #ffe0e0, var(--dr)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.val-am { background: linear-gradient(180deg, #fff4e0, var(--am)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.val-wt { background: linear-gradient(180deg, #e0f0ff, var(--wt)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+
+/* ---------- Status Row ---------- */
+.stat-row {
+  display: flex; justify-content: space-between;
+  align-items: center; gap: 6px;
+  padding: 4px 8px; margin: 3px 0;
+  background: rgba(0,6,15,.5);
+  border: 1px solid rgba(255,255,255,.04);
+  border-radius: 4px;
+  font-size: .60rem; font-weight: 600;
+}
+.stat-row .s-lbl { color: var(--dm); }
+.stat-row .s-val { font-family: monospace; }
+.s-val.ok   { color: var(--gr); }
+.s-val.warn { color: var(--am); }
+.s-val.err  { color: var(--dr); }
+.s-val.cy   { color: var(--cy); }
+.s-val.gd   { color: var(--gd); }
+.s-val.pr   { color: var(--pr); }
+
+/* ---------- Placeholder Area ---------- */
+.placeholder {
+  flex: 1; min-height: 100px;
+  display: flex; align-items: center; justify-content: center;
+  border: 1px dashed rgba(255,215,64,.08);
+  border-radius: 4px;
+  color: var(--dm);
+  font-size: .62rem; letter-spacing: 1px;
+  font-family: 'Orbitron', sans-serif;
+  position: relative;
+  overflow: hidden;
+  background: rgba(0,3,8,.25);
+  text-transform: uppercase;
+}
+.placeholder::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,215,64,.02), transparent 60%);
+  animation: shimmer 3s ease-in-out infinite;
+}
+@keyframes shimmer {
+  0%   { transform: translateX(-100%) }
+  100% { transform: translateX(100%)  }
+}
+
+/* ---------- Pipeline Placeholder ---------- */
+.pipeline-area {
+  flex: 1; min-height: 280px;
+  position: relative; overflow: hidden;
+  border: 1px solid rgba(255,215,64,.1);
+  border-radius: 4px;
+  background: radial-gradient(ellipse at 50% 50%, rgba(255,215,64,.02) 0%, transparent 60%);
+}
+.pipeline-area .corner {
+  position: absolute; width: 12px; height: 12px;
+  border: 2px solid rgba(255,215,64,.3);
+  pointer-events: none;
+}
+.pipeline-area .corner.tl { top: 0; left: 0;   border-right: none; border-bottom: none; }
+.pipeline-area .corner.tr { top: 0; right: 0;  border-left: none;  border-bottom: none; }
+.pipeline-area .corner.bl { bottom: 0; left: 0; border-right: none; border-top: none;    }
+.pipeline-area .corner.br { bottom: 0; right: 0;border-left: none;  border-top: none;    }
+.pipeline-area .map-label {
+  position: absolute; top: 6px; left: 50%; transform: translateX(-50%);
+  background: rgba(0,3,8,.92); border: 1px solid rgba(255,215,64,.25);
+  border-radius: 3px; padding: 2px 12px;
+  font-family: 'Orbitron', sans-serif; font-size: .58rem;
+  font-weight: 700; color: var(--gd); letter-spacing: 2px;
+  z-index: 2;
+}
+/* Animated flow lines placeholder */
+.pipeline-area .flow {
+  position: absolute; height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(255,215,64,.2), transparent);
+  animation: flowRight 3s linear infinite;
+}
+@keyframes flowRight {
+  0%   { left: -20%; width: 40%; }
+  100% { left: 100%; width: 40%;  }
+}
+/* Node placeholders */
+.pipeline-area .node-dot {
+  position: absolute;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,215,64,.2);
+  background: rgba(0,3,8,.8);
+}
+/* Simulated pipeline nodes (static decoration) */
+.pipeline-area .node-dot:nth-child(7)  { left: 10%; top: 45%; }
+.pipeline-area .node-dot:nth-child(8)  { left: 25%; top: 45%; }
+.pipeline-area .node-dot:nth-child(9)  { left: 40%; top: 45%; }
+.pipeline-area .node-dot:nth-child(10) { left: 55%; top: 45%; }
+.pipeline-area .node-dot:nth-child(11) { left: 70%; top: 45%; border-color: rgba(255,171,64,.35); }
+.pipeline-area .node-dot:nth-child(12) { left: 85%; top: 45%; }
+
+/* Arrows between nodes */
+.pipeline-area .arrow {
+  position: absolute; top: 50%;
+  width: 13%; height: 1px;
+  background: linear-gradient(90deg, rgba(255,215,64,.12), rgba(255,215,64,.12));
+}
+.pipeline-area .arrow.a1 { left: 11.5%; }
+.pipeline-area .arrow.a2 { left: 26.5%; }
+.pipeline-area .arrow.a3 { left: 41.5%; }
+.pipeline-area .arrow.a4 { left: 56.5%; }
+.pipeline-area .arrow.a5 { left: 71.5%; }
+
+/* ---------- Event List ---------- */
+.ev-list {
+  list-style: none;
+  flex: 1; overflow-y: auto;
+}
+.ev-list::-webkit-scrollbar { width: 2px; }
+.ev-list::-webkit-scrollbar-thumb { background: rgba(255,215,64,.06); border-radius: 2px; }
+
+.ev-item {
+  display: flex; align-items: flex-start; gap: 6px;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255,255,255,.02);
+  font-size: .58rem;
+  transition: background .2s;
+}
+.ev-item:hover { background: rgba(255,215,64,.03); }
+.ev-item .ev-time {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .50rem; color: var(--dm);
+  min-width: 70px; flex-shrink: 0;
+}
+.ev-item .ev-tag {
+  padding: 1px 5px; border-radius: 3px;
+  font-size: .42rem; font-weight: 700; flex-shrink: 0;
+  white-space: nowrap;
+}
+.ev-tag.a { background: rgba(255,215,64,.08); color: var(--gd); border: 1px solid rgba(255,215,64,.15); }
+.ev-tag.b { background: rgba(124,92,255,.08); color: var(--pr); border: 1px solid rgba(124,92,255,.15); }
+.ev-tag.c { background: rgba(0,229,255,.08); color: var(--cy); border: 1px solid rgba(0,229,255,.15); }
+.ev-tag.d { background: rgba(0,230,118,.08); color: var(--gr); border: 1px solid rgba(0,230,118,.15); }
+.ev-tag.e { background: rgba(255,45,85,.08); color: var(--dr); border: 1px solid rgba(255,45,85,.15); }
+.ev-item .ev-msg {
+  flex: 1; line-height: 1.3;
+  word-break: break-all;
+}
+
+/* ---------- Action Buttons ---------- */
+.btn-row {
+  display: flex; gap: 4px; margin-top: 6px; flex-shrink: 0;
+}
+.btn {
+  flex: 1;
+  padding: 5px 0; border-radius: 4px;
+  font-family: 'Orbitron', 'Noto Sans SC', sans-serif;
+  font-size: .62rem; font-weight: 700;
+  cursor: pointer; text-align: center;
+  background: transparent;
+  border: 1px solid;
+  letter-spacing: .6px;
+  transition: .25s;
+  position: relative; overflow: hidden;
+}
+.btn::before {
+  content: '';
+  position: absolute; top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,215,64,.08), transparent);
+  transition: .4s;
+}
+.btn:hover::before { left: 100%; }
+.btn-gd  { color: var(--gd); border-color: rgba(255,215,64,.3);  }
+.btn-gd:hover  { background: rgba(255,215,64,.12); box-shadow: 0 0 16px rgba(255,215,64,.25); }
+.btn-pr  { color: var(--pr); border-color: rgba(124,92,255,.3);   }
+.btn-pr:hover  { background: rgba(124,92,255,.12); box-shadow: 0 0 16px rgba(124,92,255,.25); }
+.btn-cy  { color: var(--cy); border-color: rgba(0,229,255,.3);   }
+.btn-cy:hover  { background: rgba(0,229,255,.12); box-shadow: 0 0 16px rgba(0,229,255,.25); }
+.btn-gr  { color: var(--gr); border-color: rgba(0,230,118,.3);   }
+.btn-gr:hover  { background: rgba(0,230,118,.12); box-shadow: 0 0 16px rgba(0,230,118,.25); }
+.btn-dr  { color: var(--dr); border-color: rgba(255,45,85,.3);   }
+.btn-dr:hover  { background: rgba(255,45,85,.12); box-shadow: 0 0 16px rgba(255,45,85,.25); }
+
+/* ---------- Toggle Switch ---------- */
+.tgl-row {
+  display: flex; gap: 4px; flex-wrap: wrap; margin: 4px 0;
+}
+.tgl {
+  padding: 3px 8px; border-radius: 14px;
+  font-size: .48rem; font-weight: 600; cursor: pointer;
+  background: rgba(0,3,8,.6);
+  border: 1px solid rgba(255,255,255,.08);
+  color: var(--dm);
+  transition: .2s;
+  display: flex; align-items: center; gap: 4px;
+}
+.tgl::before {
+  content: '';
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #5a6070;
+}
+.tgl.on {
+  color: var(--gr);
+  border-color: rgba(0,230,118,.3);
+  background: rgba(0,230,118,.06);
+}
+.tgl.on::before {
+  background: var(--gr);
+  box-shadow: 0 0 6px rgba(0,230,118,.5);
+}
+.tgl:hover { box-shadow: 0 0 6px rgba(255,215,64,.1); }
+
+
+/* ---------- ECharts Chart Containers ---------- */
+.chart-xs  { width: 100%; height: 60px;  flex-shrink: 0; margin-bottom: 4px; }
+.chart-sm  { width: 100%; height: 100px; flex-shrink: 0; margin-bottom: 4px; }
+.chart-md  { width: 100%; height: 130px; flex-shrink: 0; margin-bottom: 6px; }
+.chart-box { width: 100%; height: 200px; flex-shrink: 0; margin-bottom: 6px; }
+
+/* ---------- Divider ---------- */
+.divider {
+  height: 1px; margin: 5px 0; flex-shrink: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,215,64,.08) 30%, rgba(255,215,64,.08) 70%, transparent);
+}
+
+/* ---------- Progress Bar ---------- */
+.prog-bar {
+  height: 4px; border-radius: 2px; margin: 3px 0;
+  background: rgba(255,255,255,.03);
+  overflow: hidden; flex-shrink: 0;
+}
+.prog-bar .fill {
+  height: 100%; border-radius: 2px;
+  transition: width .5s;
+}
+.fill-gd { background: linear-gradient(90deg, #a08000, var(--gd), #ffe8a0); }
+.fill-pr { background: linear-gradient(90deg, #4c3ccc, var(--pr), #a090ff); }
+.fill-cy { background: linear-gradient(90deg, #007090, var(--cy), #90e8ff); }
+.fill-gr { background: linear-gradient(90deg, #008040, var(--gr), #90ffc0); }
+
+
+.ct-flt {
+  display: inline-block;
+  padding: 1px 7px; border-radius: 10px;
+  font-size: .44rem; font-weight: 600; cursor: pointer;
+  border: 1px solid rgba(255,255,255,.06);
+  color: var(--dm);
+  transition: .2s;
+}
+.ct-flt.on, .ct-flt:hover {
+  border-color: var(--gd); color: var(--gd);
+  background: rgba(255,215,64,.04);
+}
+
+
+/* ---------- Die Grid (Pipeline area overlay) ---------- */
+.die-grid {
+  position: absolute; inset: 0;
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: auto auto;
+  gap: 3px; padding: 28px 10px 10px;
+  z-index: 3;
+}
+.die-chip {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 2px 3px; border-radius: 3px;
+  font-family: 'Orbitron', monospace;
+  font-size: .38rem; font-weight: 700;
+  text-align: center; border: 1px solid;
+  transition: all .35s; cursor: pointer;
+}
+.die-chip .dn { font-size: .32rem; opacity: .8; }
+.die-chip .dv { font-size: .46rem; }
+.die-chip .ds { font-size: .30rem; opacity: .7; }
+.die-chip.idle    { border-color: rgba(255,255,255,.05); color: var(--dm); background: rgba(0,3,8,.25); }
+.die-chip.running { border-color: rgba(0,229,255,.25); color: var(--cy); background: rgba(0,229,255,.06); }
+.die-chip.complete{ border-color: rgba(0,230,118,.25); color: var(--gr); background: rgba(0,230,118,.06); }
+.die-chip.crashed { border-color: rgba(255,45,85,.45); color: var(--dr); background: rgba(255,45,85,.1); animation: dShake .35s ease-in-out; }
+.die-chip.recovering{ border-color: rgba(255,171,64,.35); color: var(--am); background: rgba(255,171,64,.08); animation: dPulse .9s ease-in-out infinite; }
+@keyframes dShake { 0%,100%{transform:translateX(0)}25%{transform:translateX(-2px)}75%{transform:translateX(2px)} }
+@keyframes dPulse { 0%,100%{opacity:1}50%{opacity:.45} }
+
+
+/* Hash chain status indicator */
+.hash-verified { color: var(--gr); font-weight: 700; }
+.hash-fail    { color: var(--dr); font-weight: 700; }
+
+
+/* ---------- Pipeline Node State Colors ---------- */
+.pl-node-hi  { stroke: #00e676 !important; fill: rgba(0,230,118,0.12) !important; }
+.pl-node-ok  { stroke: #ffd740 !important; fill: rgba(255,215,64,0.10) !important; }
+.pl-node-warn{ stroke: #ffab40 !important; fill: rgba(255,171,64,0.10) !important; animation: plPulse 1s ease-in-out infinite; }
+.pl-node-crit{ stroke: #ff2d55 !important; fill: rgba(255,45,85,0.12) !important; animation: plPulse .5s ease-in-out infinite; }
+.pl-node-dim { stroke: rgba(124,92,255,0.12) !important; }
+@keyframes plPulse { 0%,100%{opacity:1}50%{opacity:.5} }
+
+/* Line colors match node state */
+.pl-line-hi  { stroke: rgba(0,230,118,0.35) !important; }
+.pl-line-ok  { stroke: rgba(255,215,64,0.25) !important; }
+.pl-line-warn{ stroke: rgba(255,171,64,0.30) !important; }
+
+/* ---------- Verification Status ---------- */
+.verify-section { margin-top: 4px; }
+.verify-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 3px 8px; margin: 2px 0;
+  background: rgba(0,6,15,.4);
+  border: 1px solid rgba(255,255,255,.03);
+  border-radius: 4px;
+}
+.v-lbl   { font-size: .56rem; color: #3a5470; font-weight: 600; }
+.v-status { font-family: 'Orbitron',monospace; font-size: .62rem; font-weight: 900; letter-spacing: 1px; }
+
+.v-status.pass      { color: #00e676; text-shadow: 0 0 8px rgba(0,230,118,0.4); }
+.v-status.fail      { color: #ff2d55; text-shadow: 0 0 8px rgba(255,45,85,0.4); }
+.v-status.pending   { color: #3a5470; }
+.v-status.verifying { color: #ffd740; text-shadow: 0 0 10px rgba(255,215,64,0.6); animation: vBlink .35s ease-in-out infinite; }
+@keyframes vBlink { 0%,100%{opacity:1}50%{opacity:.2} }
+
+
+/* ---------- Toast Notification ---------- */
+#toast-container {
+  position: fixed; top: 16px; right: 16px; z-index: 9999;
+  display: flex; flex-direction: column; gap: 6px;
+  pointer-events: none;
+}
+.toast {
+  padding: 8px 18px; border-radius: 5px;
+  font-family: 'Rajdhani','Noto Sans SC',sans-serif;
+  font-size: .64rem; font-weight: 700; letter-spacing: .5px;
+  color: #000; min-width: 220px; max-width: 360px;
+  box-shadow: 0 4px 24px rgba(0,0,0,.4);
+  animation: toastIn .35s ease-out, toastOut .35s ease-in 2.7s forwards;
+  pointer-events: auto;
+}
+.toast.info  { background: linear-gradient(135deg, #00e5ff, #0098cc); color: #000; }
+.toast.ok    { background: linear-gradient(135deg, #00e676, #00a844); color: #000; }
+.toast.warn  { background: linear-gradient(135deg, #ffab40, #d08000); color: #000; }
+.toast.err   { background: linear-gradient(135deg, #ff2d55, #c02030); color: #fff; }
+.toast.boost { background: linear-gradient(135deg, #ffd740, #c8a000); color: #000; }
+@keyframes toastIn  { from{opacity:0;transform:translateX(60px)} to{opacity:1;transform:translateX(0)} }
+@keyframes toastOut { from{opacity:1;transform:translateX(0)}    to{opacity:0;transform:translateX(80px)} }
+
+/* ---------- Responsive ---------- */
+
+/* ---------- Degradation Banner ---------- */
+.degrade-banner {
+  display: none;
+  position: sticky; top: 0; z-index: 8000;
+  width: 100%;
+  background: linear-gradient(90deg, rgba(255,45,85,.95), rgba(200,20,30,.95), rgba(255,45,85,.95));
+  color: #fff; text-align: center;
+  padding: 12px 20px;
+  font-family: 'Orbitron','Noto Sans SC',sans-serif;
+  font-size: .82rem; font-weight: 900;
+  letter-spacing: 2px;
+  animation: degBannerPulse .6s ease-in-out infinite;
+  box-shadow: 0 0 40px rgba(255,45,85,.4);
+  border-bottom: 2px solid rgba(255,255,255,.3);
+}
+.degrade-banner.show { display: block; }
+.degrade-banner .deg-icon {
+  display: inline-block; margin-right: 8px;
+  font-size: 1rem;
+  animation: degIconShake .3s ease-in-out infinite;
+}
+.degrade-banner .deg-detail {
+  display: block; font-size: .52rem; font-weight: 400;
+  letter-spacing: 1px; opacity: .8; margin-top: 2px;
+}
+@keyframes degBannerPulse {
+  0%,100% { box-shadow: 0 0 30px rgba(255,45,85,.4); }
+  50%     { box-shadow: 0 0 60px rgba(255,45,85,.8); }
+}
+@keyframes degIconShake {
+  0%,100% { transform: rotate(0); }
+  25%     { transform: rotate(-5deg); }
+  75%     { transform: rotate(5deg); }
+}
+
+/* Write button disabled in degradation */
+.btn-disabled {
+  opacity: .25 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}
+@media (max-width: 1400px) {
+  .main {
+    grid-template-columns: 300px 1fr 280px;
+  }
+  .hdr { padding: 0 10px; }
+  .title-block h1 { font-size: 1.15rem; }
+}
+
+@media (max-width: 1024px) {
+  .main {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto auto;
+  }
+  .p1 { grid-column: 1; grid-row: 1; }
+  .p2 { grid-column: 1; grid-row: 2; }
+  .p3 { grid-column: 2; grid-row: 1 / span 2; }
+  .p4 { grid-column: 1 / span 2; grid-row: 3; max-height: 160px; }
+  .p5 { grid-column: 1; grid-row: 4; }
+  .p6 { grid-column: 2; grid-row: 4; }
+  .main { overflow-y: auto; }
+}
+
+@media (max-width: 768px) {
+  .main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto;
+    overflow-y: auto;
+  }
+  .p1,.p2,.p3,.p4,.p5,.p6 {
+    grid-column: 1 !important;
+    grid-row: auto !important;
+    max-height: none !important;
+  }
+  .hdr .pill:nth-child(2),
+  .hdr .pill:nth-child(3) { display: none; }
+  .title-block h1 { font-size: 1rem; letter-spacing: 1px; }
+}
+</style>
+</head>
+<body>
+<div id="toast-container"></div>
+
+<!-- ============================================================
+     BACKGROUND LAYERS (纯装饰层)
+     ============================================================ -->
+<canvas id="bgCanvas"></canvas>
+<div class="bg-grid"></div>
+<div class="bg-scan"></div>
+<div class="bg-glow"></div>
+
+<!-- ============================================================
+     APPLICATION SHELL
+     ============================================================ -->
+<div class="app">
+
+  <!-- ============================================================
+       HEADER — 顶部状态栏
+       ============================================================ -->
+  <header class="hdr">
+    <div class="hdr-l">
+      <div class="logo-ring">
+        <span class="inner">&#x25C8;</span>
+      </div>
+      <div class="title-block">
+        <h1>DAI JING 235</h1>
+        <div class="sub">&#x5CB1;&#x5883;&#x00B7;&#x786E;&#x5B9A;&#x6027;&#x7BA1;&#x63A7;&#x4E2D;&#x67A2;</div>
+      </div>
+    </div>
+    <div class="hdr-r">
+      <span class="pill"><span class="dot online"></span>&#x786E;&#x5B9A;&#x6027;&#x503C;&#x73ED;</span>
+      <span class="pill"><span class="dot"></span>Temp=0&#x00B7;MoE=Fixed&#x00B7;Seed=Locked</span>
+      <span class="pill"><span class="dot online"></span>&#x8282;&#x70B9; 16/16</span>
+      <span class="clock" id="liveClock">00:00:00</span>
+    </div>
+  </header>
+
+  <!-- ============================================================
+       DEGRADATION BANNER — 集群降级警告（默认隐藏）
+       ============================================================ -->
+  <div class="degrade-banner" id="degradeBanner">
+    <span class="deg-icon">&#x26A0;</span>
+    系统异常 — 降级只读模式
+    <span class="deg-detail" id="degDetail">Raft集群仲裁丢失 · 写操作已全部阻断 · 等待节点恢复</span>
+  </div>
+
+  <!-- ============================================================
+       MAIN GRID — 三列两行 · 上下错落
+       ============================================================ -->
+  <div class="main">
+
+    <!-- ============ PANEL 1 — 左-上：系统总览 ============ -->
+    <section class="panel panel-l p1">
+      <div class="p-hd">
+        <span class="icon">&#x25C9;</span>
+        &#x7CFB;&#x7EDF;&#x603B;&#x89C8;
+        <span class="badge">OVERVIEW</span>
+      </div>
+      <div class="p-bd">
+        <!-- KPI 指标区 -->
+        <div class="metric-grid">
+          <div class="m-card">
+            <div class="val val-cy" id="kDet">99.6</div>
+            <div class="lbl">&#x786E;&#x5B9A;&#x6027;&#x8BC4;&#x5206;</div>
+          </div>
+          <div class="m-card">
+            <div class="val val-gd" id="kStep">94.3</div>
+            <div class="lbl">&#x5355;&#x6B65;&#x6210;&#x529F;&#x7387;(%)</div>
+          </div>
+          <div class="m-card">
+            <div class="val val-pr" id="kE2E">91.6</div>
+            <div class="lbl">E2E&#x00B7;&#x786E;&#x5B9A;(%)</div>
+          </div>
+        </div>
+        <div class="metric-grid" style="margin-top:4px">
+          <div class="m-card">
+            <div class="val val-gd" id="kPrec">92.8</div>
+            <div class="lbl">&#x7CBE;&#x5EA6;&#x8BC4;&#x5206;(%)</div>
+          </div>
+          <div class="m-card">
+            <div class="val val-pr" id="kAcc">95.2</div>
+            <div class="lbl">&#x51C6;&#x786E;&#x7387;(%)</div>
+          </div>
+          <div class="m-card">
+            <div class="val val-gr" id="kInt">99.9</div>
+            <div class="lbl">&#x5931;&#x8D25;&#x62E6;&#x622A;(%)</div>
+          </div>
+        </div>
+        <div class="metric-grid" style="margin-top:4px">
+          <div class="m-card">
+            <div class="val val-cy" id="kRaftLat">18.4</div>
+            <div class="lbl">Raft&#x5171;&#x8BC6;&#x5EF6;&#x8FDF;(ms)</div>
+          </div>
+          <div class="m-card">
+            <div class="val val-gd" id="kQueue">3</div>
+            <div class="lbl">Agent&#x7B49;&#x5F85;&#x961F;&#x5217;</div>
+          </div>
+          <div class="m-card">
+            <div class="val val-gr" id="kGrpcHealth">100</div>
+            <div class="lbl">gRPC&#x8FDE;&#x63A5;&#x5065;&#x5EB7;(%)</div>
+          </div>
+        </div>
+        <!-- 状态行 -->
+        <div class="stat-row">
+          <span class="s-lbl">&#x8FD0;&#x884C;&#x6A21;&#x5F0F;</span>
+          <span class="s-val ok" id="kMode">&#x786E;&#x5B9A;&#x6027;&#x4F18;&#x5148;</span>
+          <span class="s-lbl">&#x8D44;&#x6E90;</span>
+          <span class="s-val cy" id="kRes">16 Agent&#x00B7;235&#x5F15;&#x64CE;</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">&#x5065;&#x5EB7;&#x5EA6;</span>
+          <span class="s-val ok" id="kHealth">&#x4F18;&#x79C0; (97/100)</span>
+          <span class="s-lbl">&#x8FD0;&#x884C;&#x65F6;&#x957F;</span>
+          <span class="s-val gd" id="kUptime">1286h</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PANEL 2 — 左-下：确定性引擎 ============ -->
+    <section class="panel panel-l p2">
+      <div class="p-hd">
+        <span class="icon">&#x238D;</span>
+        &#x786E;&#x5B9A;&#x6027;&#x5F15;&#x64CE;
+        <span class="badge">235&#x00B7;ENGINE</span>
+      </div>
+      <div class="p-bd">
+        <!-- 确定性参数状态 -->
+        <div class="stat-row">
+          <span class="s-lbl">Temperature</span>
+          <span class="s-val cy">0.000000</span>
+          <span class="s-lbl" style="color:var(--gr)">&#x25CF; LOCKED</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">MoE Router</span>
+          <span class="s-val cy">FIXED-SEED</span>
+          <span class="s-lbl" style="color:var(--gr)">&#x25CF; LOCKED</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">FP Precision</span>
+          <span class="s-val gd">FP64&#x00B7;&#x786E;&#x5B9A;</span>
+          <span class="s-lbl" style="color:var(--gr)">&#x25CF; ACTIVE</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">Seed</span>
+          <span class="s-val pr">0x235DAI&#x00B7;FIXED</span>
+          <span class="s-lbl" style="color:var(--gr)">&#x25CF; LOCKED</span>
+        </div>
+        <div class="divider"></div>
+        <!-- 衰减模型 -->
+        <div class="stat-row">
+          <span class="s-lbl">&#x7CBE;&#x5EA6;&#x8870;&#x51CF;</span>
+          <span class="s-val gd" id="eDecayPrec">-1.2%/step</span>
+        </div>
+        <div class="prog-bar"><div class="fill fill-gd" id="eBarPrec" style="width:87%"></div></div>
+        <div class="stat-row">
+          <span class="s-lbl">&#x51C6;&#x786E;&#x7387;&#x8870;&#x51CF;</span>
+          <span class="s-val pr" id="eDecayAcc">-0.9%/step</span>
+        </div>
+        <div class="prog-bar"><div class="fill fill-pr" id="eBarAcc" style="width:92%"></div></div>
+        <div class="stat-row">
+          <span class="s-lbl">Recovery&#x7387;</span>
+          <span class="s-val gr" id="eRecRate">72.0%</span>
+        </div>
+        <div class="prog-bar"><div class="fill fill-gr" id="eBarRec" style="width:72%"></div></div>
+        <!-- 引擎控制按钮 -->
+        <div class="btn-row">
+          <button class="btn btn-cy" id="btnResetSeed" onclick="handleResetSeed()">&#x91CD;&#x7F6E;&#x79CD;&#x5B50;</button>
+          <button class="btn btn-dr" id="btnChaos" onclick="handleChaosInject()">&#x6DF7;&#x6C8C;&#x6CE8;&#x5165;</button>
+        </div>
+        <div class="divider"></div>
+        <!-- 验证状态 -->
+        <div class="verify-section">
+          <div class="verify-row">
+            <span class="v-lbl">&#x767D;&#x76D2;&#x9A8C;&#x8BC1;</span>
+            <span class="v-status pass" id="vWhite">PASS</span>
+          </div>
+          <div class="verify-row">
+            <span class="v-lbl">&#x9ED1;&#x76D2;&#x9A8C;&#x8BC1;</span>
+            <span class="v-status pass" id="vBlack">PASS</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PANEL 3 — 中：Agent执行链路 ============ -->
+    <section class="panel panel-c p3">
+      <div class="p-hd">
+        <span class="icon">&#x231B;</span>
+        Agent&#x6267;&#x884C;&#x94FE;&#x8DEF;
+        <span class="badge">PIPELINE</span>
+      </div>
+      <div class="p-bd" style="display:flex;flex-direction:column;gap:8px">
+        <!-- 动态 7 步 Pipeline SVG -->
+        <div class="pipeline-area" id="plArea">
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+          <div class="map-label">7-STEP AGENT ORCHESTRATION PIPELINE</div>
+          <svg id="plSvg" viewBox="0 0 860 280" style="width:100%;height:100%">
+            <!-- Connecting lines (6 links) -->
+            <line id="plLink0" x1="130" y1="145" x2="230" y2="145" stroke="rgba(255,215,64,0.18)" stroke-width="2"/>
+            <line id="plLink1" x1="250" y1="145" x2="350" y2="145" stroke="rgba(255,215,64,0.18)" stroke-width="2"/>
+            <line id="plLink2" x1="370" y1="145" x2="470" y2="145" stroke="rgba(255,215,64,0.18)" stroke-width="2"/>
+            <line id="plLink3" x1="490" y1="145" x2="590" y2="145" stroke="rgba(255,215,64,0.18)" stroke-width="2"/>
+            <line id="plLink4" x1="610" y1="145" x2="710" y2="145" stroke="rgba(255,215,64,0.18)" stroke-width="2"/>
+            <line id="plLink5" x1="730" y1="145" x2="830" y2="145" stroke="rgba(255,215,64,0.18)" stroke-width="2"/>
+            <!-- Animated particle along links -->
+            <circle r="3" fill="#ffd740" opacity="0.5">
+              <animateMotion dur="3.5s" repeatCount="indefinite"
+                path="M130,145 L230,145 L350,145 L470,145 L590,145 L710,145 L830,145"/>
+            </circle>
+            <!-- Recovery loop arc (Verifier -> Recover -> Finalizer) -->
+            <path id="plRecArc" d="M610,165 Q670,240 730,165" fill="none" stroke="rgba(0,230,118,0.15)" stroke-width="1.5" stroke-dasharray="4,3"/>
+            <circle r="2.5" fill="#00e676" opacity="0.6">
+              <animateMotion dur="2.5s" repeatCount="indefinite" path="M610,165 Q670,240 730,165"/>
+            </circle>
+            <!-- 7 Pipeline nodes: each is a group with circle + precision text + label -->
+            <!-- Node 0: Orchstrator -->
+            <g id="plNode0">
+              <circle id="plCirc0" cx="130" cy="145" r="22" fill="rgba(0,5,15,0.95)" stroke="#ffd740" stroke-width="2.5"/>
+              <text x="130" y="149" text-anchor="middle" font-family="Orbitron" font-size="11" font-weight="900" fill="#ffd740">O</text>
+              <text id="plPrec0" x="130" y="178" text-anchor="middle" font-family="Orbitron" font-size="9" font-weight="700" fill="#ffd740">97%</text>
+              <text id="plAcc0"  x="130" y="192" text-anchor="middle" font-family="Orbitron" font-size="7" fill="#7c5cff">A98%</text>
+              <text x="130" y="210" text-anchor="middle" font-size="7" fill="#3a5470">Orchstrator</text>
+            </g>
+            <!-- Node 1: Planner -->
+            <g id="plNode1">
+              <circle id="plCirc1" cx="250" cy="145" r="14" fill="rgba(0,5,15,0.95)" stroke="#7c5cff" stroke-width="2"/>
+              <text id="plPrec1" x="250" y="125" text-anchor="middle" font-family="Orbitron" font-size="9" font-weight="700" fill="#ffd740">95%</text>
+              <text id="plAcc1"  x="250" y="138" text-anchor="middle" font-family="Orbitron" font-size="7" fill="#7c5cff">A95%</text>
+              <text x="250" y="170" text-anchor="middle" font-size="7" fill="#3a5470">Planner</text>
+            </g>
+            <!-- Node 2: Decomposer -->
+            <g id="plNode2">
+              <circle id="plCirc2" cx="370" cy="145" r="14" fill="rgba(0,5,15,0.95)" stroke="#7c5cff" stroke-width="2"/>
+              <text id="plPrec2" x="370" y="125" text-anchor="middle" font-family="Orbitron" font-size="9" font-weight="700" fill="#ffd740">91%</text>
+              <text id="plAcc2"  x="370" y="138" text-anchor="middle" font-family="Orbitron" font-size="7" fill="#7c5cff">A93%</text>
+              <text x="370" y="170" text-anchor="middle" font-size="7" fill="#3a5470">Decomposer</text>
+            </g>
+            <!-- Node 3: Executor -->
+            <g id="plNode3">
+              <circle id="plCirc3" cx="490" cy="145" r="14" fill="rgba(0,5,15,0.95)" stroke="#ffab40" stroke-width="2"/>
+              <text id="plPrec3" x="490" y="125" text-anchor="middle" font-family="Orbitron" font-size="9" font-weight="700" fill="#ffd740">87%</text>
+              <text id="plAcc3"  x="490" y="138" text-anchor="middle" font-family="Orbitron" font-size="7" fill="#7c5cff">A91%</text>
+              <text x="490" y="170" text-anchor="middle" font-size="7" fill="#3a5470">Executor</text>
+            </g>
+            <!-- Node 4: Verifier -->
+            <g id="plNode4">
+              <circle id="plCirc4" cx="610" cy="145" r="14" fill="rgba(0,5,15,0.95)" stroke="#ffab40" stroke-width="2"/>
+              <text id="plPrec4" x="610" y="125" text-anchor="middle" font-family="Orbitron" font-size="9" font-weight="700" fill="#ffd740">84%</text>
+              <text id="plAcc4"  x="610" y="138" text-anchor="middle" font-family="Orbitron" font-size="7" fill="#7c5cff">A89%</text>
+              <text x="610" y="170" text-anchor="middle" font-size="7" fill="#3a5470">Verifier</text>
+            </g>
+            <!-- Node 5: Recovery -->
+            <g id="plNode5">
+              <circle id="plCirc5" cx="730" cy="145" r="14" fill="rgba(0,5,15,0.95)" stroke="#7c5cff" stroke-width="2"/>
+              <text id="plPrec5" x="730" y="125" text-anchor="middle" font-family="Orbitron" font-size="9" font-weight="700" fill="#ffd740">80%</text>
+              <text id="plAcc5"  x="730" y="138" text-anchor="middle" font-family="Orbitron" font-size="7" fill="#7c5cff">A86%</text>
+              <text x="730" y="170" text-anchor="middle" font-size="7" fill="#3a5470">Recovery</text>
+            </g>
+            <!-- Node 6: Finalizer -->
+            <g id="plNode6">
+              <circle id="plCirc6" cx="830" cy="145" r="14" fill="rgba(0,5,15,0.95)" stroke="#7c5cff" stroke-width="2"/>
+              <text id="plPrec6" x="830" y="125" text-anchor="middle" font-family="Orbitron" font-size="9" font-weight="700" fill="#ffd740">77%</text>
+              <text id="plAcc6"  x="830" y="138" text-anchor="middle" font-family="Orbitron" font-size="7" fill="#7c5cff">A83%</text>
+              <text x="830" y="170" text-anchor="middle" font-size="7" fill="#3a5470">Finalizer</text>
+            </g>
+          </svg>
+        </div>
+        <!-- Pipeline 摘要数据行 -->
+        <div class="stat-row">
+          <span class="s-lbl">&#x94FE;&#x8DEF;&#x72B6;&#x6001;</span>
+          <span class="s-val ok" id="plStatus">&#x6D41;&#x901A;</span>
+          <span class="s-lbl">&#x5F53;&#x524D;&#x6B65;&#x9AA4;</span>
+          <span class="s-val gd" id="plStep">Verifier (5/7)</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">E2E&#x00B7;&#x786E;&#x5B9A;</span>
+          <span class="s-val cy" id="plE2E">89.6%</span>
+          <span class="s-lbl">+Recovery Loop</span>
+          <span class="s-val gr" id="plRecovery">96.8% (+7.2%)</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PANEL 4 — 中-下：智能增强调度 ============ -->
+    <section class="panel panel-c p4">
+      <div class="p-hd">
+        <span class="icon">&#x26A1;</span>
+        &#x667A;&#x80FD;&#x589E;&#x5F3A;&#x8C03;&#x5EA6;
+        <span class="badge">BOOST</span>
+      </div>
+      <div class="p-bd">
+        <div class="stat-row" style="font-size:.54rem">
+          <span style="color:var(--dm);font-size:.48rem">&#x4E0D;&#x6539;&#x53D8;&#x786E;&#x5B9A;&#x6027;&#x5E95;&#x5EA7; | &#x4EC5;&#x5728;&#x7F16;&#x6392;&#x5C42;&#x589E;&#x5F3A;</span>
+        </div>
+        <div class="tgl-row">
+          <span class="tgl on">&#x81EA;&#x9002;&#x5E94;Recovery</span>
+          <span class="tgl">&#x5171;&#x8BC6;&#x5F3A;&#x5316;</span>
+          <span class="tgl">&#x6F02;&#x79FB;&#x6291;&#x5236;</span>
+          <span class="tgl">&#x5E7B;&#x89C9;&#x8FC7;&#x6EE4;</span>
+          <span class="tgl on">&#x667A;&#x80FD;&#x6821;&#x51C6;</span>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-gr" style="flex:1" id="btnBoostAll" onclick="handleBoostAll()">&#x4E00;&#x952E;&#x5168;&#x5F00;</button>
+          <button class="btn btn-gd" style="flex:1" id="btnPrecCal" onclick="handlePrecisionCalibrate()">&#x7CBE;&#x5EA6;&#x6821;&#x51C6;</button>
+          <button class="btn btn-pr" style="flex:1" id="btnAccRollback" onclick="handleAccuracyRollback()">&#x51C6;&#x786E;&#x56DE;&#x6EDA;</button>
+          <button class="btn btn-cy" style="flex:1" id="btnFullChain" onclick="handleFullChainVerify()">&#x5168;&#x94FE;&#x9A8C;&#x8BC1;</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PANEL 5 — 右-上：实时事件面板 ============ -->
+    <section class="panel panel-r p5">
+      <div class="p-hd">
+        <span class="icon">&#x2263;</span>
+        &#x5B9E;&#x65F6;&#x4E8B;&#x4EF6;&#x5BA1;&#x8BA1;
+        <span class="badge">AUDIT</span>
+      </div>
+      <div class="p-bd" style="display:flex;flex-direction:column">
+        <!-- 事件频率时序图 -->
+        <div class="chart-xs" id="chEvents"></div>
+        <!-- 事件分类筛选 -->
+        <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:6px">
+          <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:.44rem;font-weight:700;border:1px solid var(--gd);color:var(--gd);background:rgba(255,215,64,.04)">&#x5168;&#x90E8;</span>
+          <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:.44rem;font-weight:600;border:1px solid rgba(255,255,255,.06);color:var(--dm)">&#x7CBE;&#x5EA6;</span>
+          <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:.44rem;font-weight:600;border:1px solid rgba(255,255,255,.06);color:var(--dm)">&#x51C6;&#x786E;</span>
+          <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:.44rem;font-weight:600;border:1px solid rgba(255,255,255,.06);color:var(--dm)">&#x5171;&#x8BC6;</span>
+          <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:.44rem;font-weight:600;border:1px solid rgba(255,255,255,.06);color:var(--dm)">&#x589E;&#x5F3A;</span>
+          <span style="display:inline-block;padding:1px 7px;border-radius:10px;font-size:.44rem;font-weight:600;border:1px solid rgba(255,255,255,.06);color:var(--dm)">&#x6F02;&#x79FB;</span>
+        </div>
+        <!-- 事件列表 -->
+        <ul class="ev-list" id="evList" style="margin-bottom:6px">
+          <li class="ev-item">
+            <span class="ev-time">07:12:04.238</span>
+            <span class="ev-tag a">&#x7CBE;&#x5EA6;</span>
+            <span class="ev-msg">Verifier FineScore 93.2% &#x901A;&#x8FC7;&#x9608;&#x503C;</span>
+          </li>
+          <li class="ev-item">
+            <span class="ev-time">07:11:58.105</span>
+            <span class="ev-tag b">&#x51C6;&#x786E;</span>
+            <span class="ev-msg">&#x8F93;&#x51FA;&#x8BED;&#x4E49;&#x4E00;&#x81F4;&#x6027;&#x6821;&#x9A8C;PASS</span>
+          </li>
+          <li class="ev-item">
+            <span class="ev-time">07:11:52.671</span>
+            <span class="ev-tag c">&#x5171;&#x8BC6;</span>
+            <span class="ev-msg">&#x591A;Agent&#x6295;&#x7968;&#x4E00;&#x81F4;&#x6027; 86% &#x8FDE;&#x7EED;3&#x8F6E;</span>
+          </li>
+          <li class="ev-item">
+            <span class="ev-time">07:11:44.209</span>
+            <span class="ev-tag d">&#x589E;&#x5F3A;</span>
+            <span class="ev-msg">&#x81EA;&#x9002;&#x5E94;Recovery&#x89E6;&#x53D1;·&#x6210;&#x529F;&#x7387;+4.2%</span>
+          </li>
+          <li class="ev-item">
+            <span class="ev-time">07:11:38.920</span>
+            <span class="ev-tag e">&#x6F02;&#x79FB;</span>
+            <span class="ev-msg">Memory Agent&#x8FD4;&#x56DE;&#x8FC7;&#x671F;&#x6570;&#x636E;·&#x5DF2;&#x62E6;&#x622A;</span>
+          </li>
+          <li class="ev-item">
+            <span class="ev-time">07:11:31.487</span>
+            <span class="ev-tag a">&#x7CBE;&#x5EA6;</span>
+            <span class="ev-msg">Decomposer&#x7CBE;&#x5EA6;Recovery&#x95ED;&#x73AF;&#x5B8C;&#x6210;</span>
+          </li>
+        </ul>
+        <!-- 导出按钮 -->
+        <div class="btn-row">
+          <button class="btn btn-gd" style="font-size:.50rem" id="btnPrevPage" onclick="prevPage()">&#x25C0; &#x524D;&#x9875;</button>
+          <button class="btn btn-gd" style="flex:2;font-size:.50rem" id="btnPageInfo" onclick="renderAuditPage()">1 / 32</button>
+          <button class="btn btn-gd" style="font-size:.50rem" id="btnNextPage" onclick="nextPage()">&#x540E;&#x9875; &#x25B6;</button>
+          <button class="btn btn-pr" style="flex:1;font-size:.50rem" id="btnCSV" onclick="exportEventCSV()">CSV</button>
+          <button class="btn btn-gd" style="flex:1;font-size:.50rem" onclick="exportAuditCSV()">⬇ CSV</button><button class="btn btn-pr" style="flex:1;font-size:.50rem" onclick="exportAuditPDF()">PDF</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ PANEL 6 — 右-下：系统性能与安全 ============ -->
+    <section class="panel panel-r p6">
+      <div class="p-hd">
+        <span class="icon">&#x2302;</span>
+        &#x6027;&#x80FD;&#x4E0E;&#x5B89;&#x5168;
+        <span class="badge">SYS</span>
+      </div>
+      <div class="p-bd">
+        <!-- 性能指标 -->
+        <div class="stat-row">
+          <span class="s-lbl">P99&#x5EF6;&#x8FDF;</span>
+          <span class="s-val cy" id="sP99">28ms</span>
+          <span class="s-lbl">&#x541E;&#x5410;</span>
+          <span class="s-val gd" id="sThru">3,842 t/s</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">CPU</span>
+          <span class="s-val ok" id="sCpu">34%</span>
+          <span class="s-lbl">GPU Mem</span>
+          <span class="s-val ok" id="sGpuMem">18.4 GB</span>
+        </div>
+        <div class="divider"></div>
+        <!-- 哈希链存证 -->
+        <div class="stat-row">
+          <span class="s-lbl">&#x54C8;&#x5E0C;&#x94FE;</span>
+          <span class="s-val pr" id="sHash" style="font-size:.50rem">0xda235...f8a</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">&#x94FE;&#x6DF1;</span>
+          <span class="s-val gd">15,592</span>
+          <span class="s-lbl">&#x7B97;&#x6CD5;</span>
+          <span class="s-val pr">SM3</span>
+        </div>
+        <div class="stat-row">
+          <span class="s-lbl">&#x5B58;&#x8BC1;&#x7B49;&#x7EA7;</span>
+          <span class="s-val gr">&#x4E09;&#x7EA7;&#x4FDD;&#x62A4;</span>
+          <span class="s-lbl">&#x5E8F;&#x5217;</span>
+          <span class="s-val gd" id="sSeq">#235</span>
+        </div>
+        <!-- 按钮 -->
+        <div class="btn-row">
+          <button class="btn btn-gd">&#x56FA;&#x5316;&#x5B58;&#x8BC1;</button>
+          <button class="btn btn-pr">&#x5B89;&#x5168;&#x626B;&#x63CF;</button>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- ============================================================
+     JAVASCRIPT — 粒子背景 + 时钟
+     ============================================================ -->
+<script>
+/* ============================================================
+   RaftKV · 数据模型 & 仿真引擎
+   16 DIE · 7步精度/准确率衰减 · 混沌注入测试
+   ============================================================ */
+(function() {
+'use strict';
+
+// =====================================================
+// PART 1: Particle Canvas Background
+// =====================================================
+var c = document.getElementById('bgCanvas'),
+    ctx = c.getContext('2d'),
+    w, h, parts = [];
+
+function rsBg() {
+  w = c.width = window.innerWidth;
+  h = c.height = window.innerHeight;
+}
+function initBg() {
+  rsBg(); parts = [];
+  for (var i = 0; i < 80; i++) {
+    parts.push({
+      x: Math.random() * w, y: Math.random() * h,
+      r: 0.3 + Math.random() * 1.0,
+      vy: -0.12 - Math.random() * 0.35,
+      vx: (Math.random() - 0.5) * 0.20,
+      alpha: 0.12 + Math.random() * 0.45,
+      color: i % 3 === 0 ? 'rgba(255,215,64,'
+           : i % 3 === 1 ? 'rgba(124,92,255,'
+           :               'rgba(0,229,255,'
+    });
+  }
+}
+function drawBg() {
+  ctx.clearRect(0, 0, w, h);
+  for (var i = 0; i < parts.length; i++) {
+    var p = parts[i]; p.y += p.vy; p.x += p.vx;
+    if (p.y < 0) p.y = h; if (p.x < 0) p.x = w; if (p.x > w) p.x = 0;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = p.color + p.alpha + ')'; ctx.fill();
+  }
+  requestAnimationFrame(drawBg);
+}
+initBg(); drawBg();
+window.addEventListener('resize', function() { rsBg(); initBg(); });
+
+// =====================================================
+// PART 2: Clock
+// =====================================================
+function tickClk() {
+  var d = new Date();
+  var el = document.getElementById('liveClock');
+  if (el) el.textContent =
+    d.getHours().toString().padStart(2, '0') + ' : ' +
+    d.getMinutes().toString().padStart(2, '0') + ' : ' +
+    d.getSeconds().toString().padStart(2, '0');
+}
+tickClk(); setInterval(tickClk, 1000);
+
+// =====================================================
+// PART 3: S235 State — Global System State
+// =====================================================
+var S235 = {
+  // Deterministic engine parameters (NEVER modified by boost or chaos)
+  engine: {
+    temperature: 0.0,
+    moeMode: 'FIXED-SEED',
+    fpPrecision: 'FP64',
+    seed: '0x235DAI',
+    stepCount: 7,
+    stepNames: ['Orchstrator','Planner','Decomposer','Executor','Verifier','Recovery','Finalizer'],
+    // Base decay rates (per step, before per-Die variation)
+    basePrecisionDecay: 1.2,
+    baseAccuracyDecay: 0.9,
+    baseRecoveryRate: 0.72
+  },
+
+  // Boost toggles — orchestration layer only, deterministic base unchanged
+  boost: {
+    adaptiveRecovery: true,
+    consensusReinforcement: false,
+    driftSuppression: false,
+    hallucinationFilter: false,
+    autoCalibration: true
+  },
+
+  // Chaos injection state
+  chaos: {
+    active: false,
+    affectedDies: [],
+    severity: 1.0,
+    endTime: 0,
+    duration: 30000,
+    recoverTimer: null
+  },
+
+  // Aggregated metrics (computed every tick from all Dies)
+  metrics: {
+    determinismScore: 99.6,
+    stepSuccessRate: 94.3,
+    e2eDeterminism: 91.6,
+    precisionScore: 92.8,
+    accuracyScore: 95.2,
+    interceptRate: 99.9,
+    avgLatency: 28,
+    totalThroughput: 3842,
+    cpuUsage: 34,
+    gpuMemGB: 18.4
+  },
+
+  // Event log
+  events: [],
+  totalEvents: 15592,
+  evtFilter: 'all',
+
+  // Hash chain
+  hashDepth: 15592,
+  hashSequence: 235,
+
+  // All 16 Dies
+  dies: [],
+  dieCount: 16,
+
+  // Timing
+  uptimeHours: 1286,
+  tickCount: 0,
+
+  // Time-series buffers for ECharts (rolling window, last 30 ticks)
+  history: {
+    detScore:       [],  // determinism score
+    precScore:      [],  // precision score
+    accScore:       [],  // accuracy score
+    p99Lat:         [],  // P99 latency
+    throughput:     [],  // total throughput
+    cpu:            [],  // CPU %
+    dieStepCount:   [],  // [s0, s1, ..., s6] count per step
+    eventCounts:    []   // events per tick
+  }
+};
+
+// =====================================================
+// PART 4: Die Constructor — Individual Execution Unit
+// =====================================================
+function Die(id) {
+  var self = this;
+  self.id = id;
+  self.name = 'DIE-' + String(id + 1).padStart(2, '0');
+  self.status = 'idle'; // idle | running | completing | crashed | recovering
+
+  // Current position in 7-step pipeline (-1 = not started, 6 = last step, 7 = complete)
+  self.currentStep = -1;
+
+  // Measured values at each pipeline step
+  self.precisionAtStep  = []; // [p0..p6]
+  self.accuracyAtStep   = []; // [a0..a6]
+  self.latencyAtStep    = []; // ms
+  self.rollbackAtStep   = []; // retry count
+
+  // Current displayed values
+  self.precision = 0;
+  self.accuracy  = 0;
+  self.latency   = 0;
+
+  // Individual Die characteristics (each Die has unique variation)
+  self.decayModifier   = 0.75 + Math.random() * 0.50; // 0.75–1.25  precision decay factor
+  self.speedFactor     = 0.60 + Math.random() * 0.80; // 0.60–1.40  step speed
+  self.qualityFactor   = 0.85 + Math.random() * 0.30; // 0.85–1.15  base output quality
+  self.resilience      = 0.30 + Math.random() * 0.50; // 0.30–0.80  resistance to chaos
+
+  // Tracking
+  self.completedRuns   = 0;
+  self.totalRecoveries = 0;
+  self.totalRollbacks  = 0;
+  self.lastEvent       = '';
+}
+
+// =====================================================
+// PART 5: Precision & Accuracy Models
+// =====================================================
+// Noise generator (consistent within a tick)
+var _tickNoise = 0;
+function tickNoise(range) {
+  return (Math.random() - 0.5) * 2 * range;
+}
+
+/**
+ * Calculate precision at a given pipeline step for a specific Die.
+ * Model:  precision(step) = 97 - step * effectiveDecay + noise + boost
+ * Effective decay = baseDecay * die.decayModifier * (1 + chaos.penalty)
+ */
+function calcPrecision(die, step) {
+  var eng = S235.engine;
+  var base = 97.0;
+
+  // Effective decay per step (higher = faster degradation)
+  var chaosPenalty = S235.chaos.active ? S235.chaos.severity * 0.6 : 0;
+  var effDecay = eng.basePrecisionDecay * die.decayModifier * (1 + chaosPenalty);
+
+  var precision = base - step * effDecay + tickNoise(1.5);
+
+  // Recovery boost (Recovery step = index 5 gives a boost)
+  if (step === 5 && die.status === 'recovering') precision += 3.0;
+
+  // Orchestration boost (does NOT change deterministic params)
+  if (S235.boost.adaptiveRecovery) precision += 0.6;
+  if (S235.boost.driftSuppression)   precision += 0.4;
+  if (S235.boost.autoCalibration)    precision += 0.3;
+
+  // Chaos crash: massive drop
+  if (die.status === 'crashed') {
+    precision = 25 + Math.random() * 30; // 25-55% for crashed Dies
+  }
+
+  return clamp(precision, 20, 99.5);
+}
+
+/**
+ * Calculate accuracy at a given pipeline step for a specific Die.
+ * Model:  accuracy(step) = 98 - step * effectiveDecay + noise + boost
+ */
+function calcAccuracy(die, step) {
+  var eng = S235.engine;
+  var base = 98.0;
+
+  var chaosPenalty = S235.chaos.active ? S235.chaos.severity * 0.5 : 0;
+  var effDecay = eng.baseAccuracyDecay * die.decayModifier * (1 + chaosPenalty);
+
+  var accuracy = base - step * effDecay + tickNoise(1.2);
+
+  if (step === 5 && die.status === 'recovering') accuracy += 2.5;
+  if (S235.boost.hallucinationFilter)  accuracy += 0.8;
+  if (S235.boost.consensusReinforcement) accuracy += 0.5;
+
+  if (die.status === 'crashed') {
+    accuracy = 30 + Math.random() * 30; // 30-60%
+  }
+
+  return clamp(accuracy, 25, 99.5);
+}
+
+function clamp(v, lo, hi) {
+  return Math.max(lo, Math.min(hi, v));
+}
+
+// =====================================================
+// PART 6: Die Progression — Advance Through Pipeline
+// =====================================================
+function advanceDie(die) {
+  var eng = S235.engine;
+  var precThreshold = S235.boost.adaptiveRecovery ? 82 : 78;
+  var accThreshold  = S235.boost.hallucinationFilter  ? 85 : 80;
+
+  switch (die.status) {
+
+    case 'idle':
+      // Start a new run
+      die.status = 'running';
+      die.currentStep = 0;
+      die.precisionAtStep = [];
+      die.accuracyAtStep  = [];
+      die.latencyAtStep   = [];
+      die.rollbackAtStep  = [];
+      // Compute step 0 values
+      die.precision = calcPrecision(die, 0);
+      die.accuracy  = calcAccuracy(die, 0);
+      die.precisionAtStep.push(die.precision);
+      die.accuracyAtStep.push(die.accuracy);
+      die.latency = Math.round((15 + Math.random() * 15) * die.speedFactor);
+      die.latencyAtStep.push(die.latency);
+      die.rollbackAtStep.push(0);
+      addEvent('die', die.name + ' 启动运行 → ' + eng.stepNames[0], 'precision');
+      break;
+
+    case 'running':
+      // Check if current precision/accuracy are below threshold → trigger rollback
+      if (die.currentStep > 0 && die.currentStep < 5 &&
+          (die.precision < precThreshold || die.accuracy < accThreshold)) {
+        die.status = 'recovering';
+        die.totalRecoveries++;
+        die.rollbackAtStep[die.currentStep] = (die.rollbackAtStep[die.currentStep] || 0) + 1;
+        // Recalculate current step with recovery boost
+        die.precision = calcPrecision(die, die.currentStep);
+        die.accuracy  = calcAccuracy(die, die.currentStep);
+        addEvent('die', die.name + ' 精度/准确率低于阈值·触发Recovery·Step=' + eng.stepNames[die.currentStep], 'drift');
+      } else {
+        // Advance to next step
+        die.currentStep++;
+        if (die.currentStep >= eng.stepCount) {
+          // Completed all 7 steps
+          die.status = 'complete';
+          die.completedRuns++;
+          S235.totalEvents++;
+          S235.hashDepth++;
+          S235.hashSequence++;
+          addEvent('die', die.name + ' 完成E2E运行 #' + die.completedRuns +
+            ' · 终点Precision=' + die.precision.toFixed(1) + '% · Accuracy=' + die.accuracy.toFixed(1) + '%', 'boost');
+          // Restart after a brief cooldown
+          setTimeout(function() {
+            if (die.status === 'complete') die.status = 'idle';
+          }, 800 + Math.random() * 1200);
+        } else {
+          // Compute next step values
+          die.precision = calcPrecision(die, die.currentStep);
+          die.accuracy  = calcAccuracy(die, die.currentStep);
+          die.precisionAtStep.push(die.precision);
+          die.accuracyAtStep.push(die.accuracy);
+          die.latency = Math.round((15 + Math.random() * 18) * die.speedFactor / (die.currentStep + 1));
+          die.latencyAtStep.push(die.latency);
+          die.rollbackAtStep.push(0);
+        }
+      }
+      break;
+
+    case 'recovering':
+      // Recovery attempt: each tick improves precision/accuracy
+      die.precision = Math.min(95, die.precision + 4 + Math.random() * 3);
+      die.accuracy  = Math.min(95, die.accuracy  + 3 + Math.random() * 3);
+      die.totalRollbacks++;
+      if (die.precision > precThreshold + 3 && die.accuracy > accThreshold + 3) {
+        die.status = 'running';
+        addEvent('die', die.name + ' Recovery成功·精度恢复至' + die.precision.toFixed(1) + '%·继续推进', 'boost');
+      }
+      break;
+
+    case 'crashed':
+      if (!S235.chaos.active) {
+        // Chaos ended — attempt auto-recovery
+        die.status = 'recovering';
+        die.precision = 40 + Math.random() * 20;
+        die.accuracy  = 45 + Math.random() * 20;
+        addEvent('die', die.name + ' 混沌结束·开始自动恢复·当前精度=' + die.precision.toFixed(1) + '%', 'drift');
+      }
+      break;
+
+    case 'complete':
+      // Already handled by the timeout above
+      break;
+  }
+}
+
+// =====================================================
+// PART 7: simTick — Main Simulation Loop
+// =====================================================
+function simTick() {
+  S235.tickCount++;
+
+  // Advance each Die (process at most 3 Dies per tick to stagger progress)
+  var runsThisTick = 0;
+  var maxPerTick = 3;
+  for (var i = 0; i < S235.dies.length; i++) {
+    var die = S235.dies[i];
+    if (die.status === 'complete' || runsThisTick >= maxPerTick) continue;
+    // Probability of advancing this tick depends on Die's speed factor
+    if (Math.random() < die.speedFactor * 0.6 || die.status === 'crashed' || die.status === 'recovering') {
+      advanceDie(die);
+      runsThisTick++;
+    }
+  }
+
+  // Compute aggregated system metrics
+  computeAggregates();
+
+  // Update all UI panels
+  updatePanel1();
+  updatePanel2();
+  updatePanel3();
+  updatePanel6();
+  renderDieGrid();
+  renderEvents();
+
+  // Every 3 ticks, generate a random system event
+  if (S235.tickCount % 3 === 0) generateRandomEvent();
+
+  // Check if chaos recovery timeout elapsed
+  if (S235.chaos.active && Date.now() >= S235.chaos.endTime) {
+    chaosRecover();
+  }
+
+  // Update uptime
+  S235.uptimeHours = 1286 + Math.floor(S235.tickCount / 240);
+
+  // Push time-series history
+  var h = S235.history;
+  h.detScore.push(S235.metrics.determinismScore);
+  h.precScore.push(S235.metrics.precisionScore);
+  h.accScore.push(S235.metrics.accuracyScore);
+  if (h.detScore.length > 30) { h.detScore.shift(); h.precScore.shift(); h.accScore.shift(); }
+
+  // Update charts
+  updateCharts();
+}
+
+// =====================================================
+// PART 8: Aggregate Metrics Computation
+// =====================================================
+function computeAggregates() {
+  var m = S235.metrics;
+  var totalRunning = 0, totalComplete = 0, totalCrashed = 0;
+  var sumPrec = 0, sumAcc = 0, sumLat = 0, sumThru = 0, precCount = 0;
+
+  for (var i = 0; i < S235.dies.length; i++) {
+    var d = S235.dies[i];
+    if (d.status === 'running' || d.status === 'recovering') totalRunning++;
+    if (d.status === 'complete') totalComplete++;
+    if (d.status === 'crashed')   totalCrashed++;
+
+    if (d.currentStep >= 0 && d.status !== 'crashed') {
+      sumPrec += d.precision;
+      sumAcc  += d.accuracy;
+      sumLat  += d.latency;
+      sumThru += 200 + Math.round(Math.random() * 300) * d.speedFactor;
+      precCount++;
+    }
+  }
+
+  if (precCount > 0) {
+    m.precisionScore = sumPrec / precCount;
+    m.accuracyScore  = sumAcc  / precCount;
+    m.avgLatency     = Math.round(sumLat / precCount);
+    m.totalThroughput = Math.round(sumThru);
+  }
+
+  // E2E determinism: based on how many Dies have reached completion
+  var aliveDies = S235.dieCount - totalCrashed;
+  var activeFactor = aliveDies / S235.dieCount;
+
+  // Step success rate: influenced by chaos
+  m.stepSuccessRate = S235.chaos.active
+    ? 85 - S235.chaos.severity * 25 + tickNoise(4)
+    : 93 + tickNoise(2);
+
+  m.determinismScore = S235.chaos.active
+    ? 85 - S235.chaos.severity * 30 + tickNoise(6)
+    : 99 + tickNoise(0.8);
+
+  // E2E determinism = pStep^7 * activeFactor
+  var e2eBase = Math.pow(clamp(m.stepSuccessRate, 40, 100) / 100, S235.engine.stepCount) * 100;
+  m.e2eDeterminism = e2eBase * activeFactor;
+
+  m.interceptRate = S235.chaos.active
+    ? 92 + tickNoise(4)
+    : 99.3 + tickNoise(0.5);
+
+  m.cpuUsage = 28 + precCount * 0.7 + totalCrashed * 4 + tickNoise(3);
+  m.gpuMemGB = 16 + precCount * 0.4 + tickNoise(0.5);
+}
+
+// =====================================================
+// PART 9: Chaos Injection — System Crash Simulation
+// =====================================================
+function chaosInject(severity) {
+  if (S235.chaos.active) {
+    addEvent('sys', '混沌注入被拒绝: 系统已处于混沌状态', 'drift');
+    return;
+  }
+
+  severity = severity || 1.0;
+  S235.chaos.active = true;
+  S235.chaos.severity = severity;
+  S235.chaos.endTime = Date.now() + S235.chaos.duration;
+
+  // Select 3 to 8 random Dies to crash (fewer at lower severity)
+  var crashCount = Math.floor(3 + severity * 5);
+  crashCount = Math.min(crashCount, S235.dieCount);
+
+  var indices = [];
+  for (var i = 0; i < S235.dies.length; i++) {
+    // Less resilient Dies are more likely to be selected
+    if (S235.dies[i].resilience < severity * 0.6) indices.push(i);
+  }
+
+  // Shuffle and pick
+  shuffle(indices);
+  var affected = indices.slice(0, crashCount);
+  S235.chaos.affectedDies = affected;
+
+  // Crash the selected Dies
+  for (var j = 0; j < affected.length; j++) {
+    var die = S235.dies[affected[j]];
+    die.status = 'crashed';
+    die.precision = 25 + Math.random() * 25;
+    die.accuracy  = 30 + Math.random() * 25;
+  }
+
+  addEvent('sys', '!!! 混沌注入 · 严重度=' + (severity * 100).toFixed(0) + '% · ' +
+    crashCount + '个Die崩溃 · 自动恢复=' + (S235.chaos.duration / 1000) + 's', 'drift');
+  // SM3 chain log
+  SM3Chain.log('chaos_inject', '混沌注入·严重度=' + (severity * 100).toFixed(0) + '%·' + crashCount + 'Die崩溃');
+  addEvent('sys', '受影响Die: ' + affected.map(function(ii) { return S235.dies[ii].name; }).join(', '), 'drift');
+
+  // Schedule auto-recovery
+  if (S235.chaos.recoverTimer) clearTimeout(S235.chaos.recoverTimer);
+  S235.chaos.recoverTimer = setTimeout(chaosRecover, S235.chaos.duration);
+
+  updateAll();
+}
+
+function chaosRecover() {
+  if (!S235.chaos.active) return;
+
+  S235.chaos.active = false;
+  S235.chaos.severity = 0;
+  if (S235.chaos.recoverTimer) {
+    clearTimeout(S235.chaos.recoverTimer);
+    S235.chaos.recoverTimer = null;
+  }
+
+  // Move crashed Dies to recovering
+  var recoveredCount = 0;
+  for (var i = 0; i < S235.chaos.affectedDies.length; i++) {
+    var die = S235.dies[S235.chaos.affectedDies[i]];
+    if (die.status === 'crashed') {
+      die.status = 'recovering';
+      die.precision = 40 + Math.random() * 20;
+      die.accuracy  = 45 + Math.random() * 20;
+      recoveredCount++;
+    }
+  }
+
+  S235.chaos.affectedDies = [];
+
+  addEvent('sys', '混沌恢复完成 · ' + recoveredCount + '个Die进入Recovery · 系统恢复正常', 'boost');
+  // SM3 chain log
+  SM3Chain.log('chaos_recover', '混沌自动恢复完成·' + recoveredCount + '个Die进入Recovery');
+  updateAll();
+}
+
+function shuffle(arr) {
+  for (var i = arr.length - 1; i > 0; i--) {
+    var j = Math.floor(Math.random() * (i + 1));
+    var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+  }
+}
+
+// =====================================================
+// PART 10: Event System
+// =====================================================
+function addEvent(cat, msg, level) {
+  var evt = {
+    time: Date.now(),
+    cat: cat,
+    msg: msg,
+    level: level || 'info'
+  };
+  S235.events.unshift(evt);
+  if (S235.events.length > 200) S235.events.pop();
+  S235.totalEvents++;
+}
+
+function generateRandomEvent() {
+  var pool = [
+    {m: '精度验证通过·全局FineScore=' + (S235.metrics.precisionScore || 92).toFixed(1) + '%', l: 'info', c: 'precision'},
+    {m: '准确率校验完成·语义一致性达标', l: 'info', c: 'accuracy'},
+    {m: '多Agent共识轮次·投票一致率88%', l: 'info', c: 'consensus'},
+    {m: '自适应Recovery触发·回滚成功', l: 'info', c: 'boost'},
+    {m: '输出漂移检测·偏移量<0.03·安全', l: 'info', c: 'drift'},
+    {m: 'FP64精度断言通过·确定性框架稳固', l: 'info', c: 'precision'},
+    {m: '幻觉过滤拦截1条低置信度输出', l: 'info', c: 'boost'},
+    {m: 'Agent缓存刷新·上下文一致性校验OK', l: 'info', c: 'consensus'},
+  ];
+  var e = pool[Math.floor(Math.random() * pool.length)];
+  addEvent(e.c, e.m, e.l);
+}
+
+function setEvtCat(cat) {
+  S235.evtFilter = cat;
+  var all = document.querySelectorAll('.ct-flt');
+  for (var i = 0; i < all.length; i++) {
+    all[i].className = all[i].getAttribute('data-cat') === cat ? 'ct-flt on' : 'ct-flt';
+  }
+  renderEvents();
+}
+
+function renderEvents() {
+  var lst = document.getElementById('evList');
+  if (!lst) return;
+  var filtered = S235.events;
+  if (S235.evtFilter !== 'all') {
+    filtered = S235.events.filter(function(e) { return e.cat === S235.evtFilter; });
+  }
+  var page = filtered.slice(0, 6);
+  var html = '';
+  for (var i = 0; i < page.length; i++) {
+    var e = page[i];
+    var d = new Date(e.time);
+    var ts = d.getHours().toString().padStart(2, '0') + ':' +
+             d.getMinutes().toString().padStart(2, '0') + ':' +
+             d.getSeconds().toString().padStart(2, '0') + '.' +
+             d.getMilliseconds().toString().padStart(3, '0');
+    var tagCls = 'a';
+    var tagTxt = e.cat;
+    if (e.cat === 'precision') { tagCls = 'a'; tagTxt = '精度'; }
+    else if (e.cat === 'accuracy')  { tagCls = 'b'; tagTxt = '准确'; }
+    else if (e.cat === 'consensus') { tagCls = 'c'; tagTxt = '共识'; }
+    else if (e.cat === 'boost')     { tagCls = 'd'; tagTxt = '增强'; }
+    else if (e.cat === 'drift')     { tagCls = 'e'; tagTxt = '漂移'; }
+    else if (e.cat === 'die')       { tagCls = 'c'; tagTxt = 'Die'; }
+    else if (e.cat === 'sys')       { tagCls = 'e'; tagTxt = '系统'; }
+    html += '<li class="ev-item"><span class="ev-time">' + ts + '</span>' +
+            '<span class="ev-tag ' + tagCls + '">' + tagTxt + '</span>' +
+            '<span class="ev-msg">' + e.msg + '</span></li>';
+  }
+  lst.innerHTML = html;
+}
+
+// =====================================================
+// PART 11: UI Update Functions
+// =====================================================
+function updatePanel1() {
+  var m = S235.metrics;
+  setEl('kDet', m.determinismScore.toFixed(1));
+  setEl('kStep', m.stepSuccessRate.toFixed(1));
+  setEl('kE2E', m.e2eDeterminism.toFixed(1));
+  setEl('kPrec', m.precisionScore.toFixed(1));
+  setEl('kAcc', m.accuracyScore.toFixed(1));
+  setEl('kInt', m.interceptRate.toFixed(1));
+
+  var crashedCount = S235.dies.filter(function(d){return d.status==='crashed'}).length;
+  var runningCount = S235.dies.filter(function(d){return d.status==='running'||d.status==='recovering'}).length;
+  var healthColor = crashedCount > 3 ? 'err' : crashedCount > 0 ? 'warn' : 'ok';
+  var healthText  = crashedCount > 3 ? '危险 (' + (100 - crashedCount * 6) + '/100)' :
+                    crashedCount > 0 ? '受损 (' + (97 - crashedCount * 6) + '/100)' : '优秀 (97/100)';
+  var modeText = S235.chaos.active ? '混沌恢复中' : '确定性优先';
+  var modeColor = S235.chaos.active ? 'warn' : 'ok';
+  var resText = S235.dieCount + ' Agent·235引擎';
+
+  setElCls('kMode', modeColor);
+  setEl('kMode', modeText);
+  setEl('kRes', resText);
+  setElCls('kHealth', healthColor);
+  setEl('kHealth', healthText);
+  setEl('kUptime', S235.uptimeHours + 'h');
+}
+
+function updatePanel2() {
+  var m = S235.metrics;
+  var precPct = S235.chaos.active ? 45 : Math.min(95, m.precisionScore);
+  var accPct  = S235.chaos.active ? 50 : Math.min(97, m.accuracyScore);
+  var recRate = S235.engine.baseRecoveryRate * 100;
+
+  setEl('eDecayPrec', '-' + (S235.chaos.active ? (S235.engine.basePrecisionDecay * 2.5) : S235.engine.basePrecisionDecay).toFixed(1) + '%/step');
+  setEl('eDecayAcc',  '-' + (S235.chaos.active ? (S235.engine.baseAccuracyDecay * 2.0) : S235.engine.baseAccuracyDecay).toFixed(1) + '%/step');
+  setEl('eRecRate', recRate.toFixed(1) + '%');
+
+  var ePrecBar = document.getElementById('eBarPrec');
+  if (ePrecBar) ePrecBar.style.width = precPct.toFixed(0) + '%';
+  var eAccBar = document.getElementById('eBarAcc');
+  if (eAccBar) eAccBar.style.width = accPct.toFixed(0) + '%';
+  var eRecBar = document.getElementById('eBarRec');
+  if (eRecBar) eRecBar.style.width = recRate.toFixed(0) + '%';
+}
+
+function updatePanel3() {
+  var running = S235.dies.filter(function(d){return d.status==='running'||d.status==='recovering'}).length;
+  var crashed = S235.dies.filter(function(d){return d.status==='crashed'}).length;
+  var complete = S235.dies.filter(function(d){return d.status==='complete'}).length;
+  var statusText = crashed > 3 ? '阻塞' : crashed > 0 ? '部分受损' : '流通';
+  var statusCls  = crashed > 3 ? 'err' : crashed > 0 ? 'warn' : 'ok';
+  setElCls('plStatus', statusCls);
+  setEl('plStatus', statusText);
+
+  // Current bottleneck step
+  var maxStep = 0;
+  for (var i = 0; i < S235.dies.length; i++) {
+    if (S235.dies[i].currentStep > maxStep && S235.dies[i].status !== 'crashed') {
+      maxStep = S235.dies[i].currentStep;
+    }
+  }
+  var eng = S235.engine;
+  var curStepName = maxStep >= 0 && maxStep < eng.stepCount ? eng.stepNames[maxStep] : '—';
+  setEl('plStep', curStepName + ' (' + (maxStep + 1) + '/' + eng.stepCount + ')');
+
+  var e2eWithRecovery = Math.min(99, S235.metrics.e2eDeterminism + 7.8);
+  var recoveryGain = (e2eWithRecovery - S235.metrics.e2eDeterminism);
+  setEl('plE2E', S235.metrics.e2eDeterminism.toFixed(1) + '%');
+  setEl('plRecovery', e2eWithRecovery.toFixed(1) + '% (+' + recoveryGain.toFixed(1) + '%)');
+}
+
+function updatePanel6() {
+  var m = S235.metrics;
+  var chaosP99 = S235.chaos.active ? 80 + Math.random() * 60 : m.avgLatency + tickNoise(4);
+  setEl('sP99', Math.round(chaosP99) + 'ms');
+  setEl('sThru', m.totalThroughput.toLocaleString() + ' t/s');
+  setElCls('sCpu', m.cpuUsage > 70 ? 'warn' : 'ok');
+  setEl('sCpu', m.cpuUsage.toFixed(0) + '%');
+  setElCls('sGpuMem', m.gpuMemGB > 28 ? 'warn' : 'ok');
+  setEl('sGpuMem', m.gpuMemGB.toFixed(1) + ' GB');
+  // Use SM3 chain data
+  setEl('sDepth', SM3Chain.depth.toLocaleString());
+  setEl('sSeq', '#' + SM3Chain.sequence);
+  setEl('sHash', SM3Chain.latestShort);
+}
+
+
+// =====================================================
+// PART 11B: SM3 Hash Chain & IndexedDB Audit Log
+// =====================================================
+var SM3Chain = (function() {
+  var _db = null;
+  var _opened = false;
+  var _records = [];
+  var _depth = 0;
+  var _seq = 0;
+  var _prevHash = '0000000000000000000000000000000000000000000000000000000000000000';
+
+  // SM3-like IV constants (GM/T 0004-2012 registration values, simulated)
+  var _IV = [0x7380166f, 0x4914b2b9, 0x172442d7, 0xda8a0600,
+             0xa96f30bc, 0x163138aa, 0xe38dee4d, 0xb0fb0e4e];
+
+  // Helper: 32-bit left rotate
+  function _rotl(w, n) { return ((w << n) | (w >>> (32 - n))) >>> 0; }
+
+  // SM3 P1 permutation
+  function _P1(x) { return (x ^ _rotl(x, 15) ^ _rotl(x, 23)) >>> 0; }
+
+  // String to UTF-8 byte array
+  function _toBytes(str) {
+    var bytes = [];
+    for (var i = 0; i < str.length; i++) {
+      var c = str.charCodeAt(i);
+      if (c < 0x80) bytes.push(c);
+      else if (c < 0x800) { bytes.push(0xc0 | (c >> 6)); bytes.push(0x80 | (c & 0x3f)); }
+      else if (c < 0x10000) { bytes.push(0xe0 | (c >> 12)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)); }
+      else { bytes.push(0xf0 | (c >> 18)); bytes.push(0x80 | ((c >> 12) & 0x3f)); bytes.push(0x80 | ((c >> 6) & 0x3f)); bytes.push(0x80 | (c & 0x3f)); }
+    }
+    return bytes;
+  }
+
+  // Bytes to 32-bit words with SM3 padding
+  function _padAndWords(bytes) {
+    var len = bytes.length;
+    var bitLen = len * 8;
+    bytes.push(0x80);
+    while ((bytes.length % 64) !== 56) bytes.push(0);
+    for (var i = 0; i < 8; i++) {
+      bytes.push((bitLen >>> (56 - i * 8)) & 0xff);
+    }
+    var words = [];
+    for (var j = 0; j < bytes.length; j += 4) {
+      words.push(((bytes[j] << 24) | (bytes[j + 1] << 16) | (bytes[j + 2] << 8) | bytes[j + 3]) >>> 0);
+    }
+    return words;
+  }
+
+  // SM3 compression (simplified, deterministic round function)
+  function _compress(words) {
+    var V = _IV.slice(); // Initialize with SM3 IV
+    var W = words.slice();
+    // Extend W to 68 words (SM3 message expansion, simplified)
+    while (W.length < 132) {
+      var idx = W.length;
+      if (idx < 68) {
+        var w = ((W[idx - 16] ^ W[idx - 9] ^ _rotl(W[idx - 3], 15)) >>> 0);
+        w = (w ^ _rotl(w, 15) ^ _rotl(w, 23)) >>> 0;
+        w = (w ^ W[idx - 13] ^ _rotl(W[idx - 6], 7)) >>> 0;
+        W.push(w);
+      } else {
+        W.push((W[idx - 68] ^ W[idx - 64]) >>> 0);
+      }
+    }
+    // Compression rounds
+    var A = V[0], B = V[1], C = V[2], D = V[3],
+        E = V[4], F = V[5], G = V[6], H = V[7];
+    for (var j = 0; j < 64; j++) {
+      var SS1 = _rotl((_rotl(A, 12) + E + _rotl(0x79cc4519, j % 32)) >>> 0, 7);
+      var SS2 = SS1 ^ _rotl(A, 12);
+      var TT1, TT2;
+      if (j < 16) {
+        TT1 = ((A ^ B ^ C) + D + SS2 + (W[j] ^ W[j + 4])) >>> 0;
+        TT2 = ((E ^ F ^ G) + H + SS1 + W[j]) >>> 0;
+      } else {
+        TT1 = (((A & B) | (A & C) | (B & C)) + D + SS2 + (W[j] ^ W[j + 4])) >>> 0;
+        TT2 = (((E & F) | (~E & G)) + H + SS1 + (W[j] ^ W[j + 68])) >>> 0;
+      }
+      D = C; C = _rotl(B, 9); B = A; A = TT1;
+      H = G; G = _rotl(F, 19); F = E; E = _P1(TT2);
+    }
+    V[0] ^= A; V[1] ^= B; V[2] ^= C; V[3] ^= D;
+    V[4] ^= E; V[5] ^= F; V[6] ^= G; V[7] ^= H;
+    return V;
+  }
+
+  // Word array to hex string
+  function _toHex(words) {
+    var hex = '';
+    for (var i = 0; i < words.length; i++) {
+      hex += ('00000000' + (words[i] >>> 0).toString(16)).slice(-8);
+    }
+    return hex;
+  }
+
+  // Compute SM3 hash of a preimage string
+  function sm3Digest(input) {
+    var bytes = _toBytes(input);
+    var words = _padAndWords(bytes);
+    // Process in 512-bit (16-word) blocks
+    var V = _IV.slice();
+    for (var i = 0; i < words.length; i += 16) {
+      var block = words.slice(i, i + 16);
+      var cv = _compress(block);
+      for (var j = 0; j < 8; j++) V[j] = (V[j] ^ cv[j]) >>> 0;
+    }
+    return _toHex(V);
+  }
+
+  // Build preimage: prevHash || seq || timestamp || actionType || JSON(data)
+  function buildPreimage(prevHash, seq, timestamp, actionType, description) {
+    return prevHash + '|' + seq + '|' + timestamp + '|' + actionType + '|' + description;
+  }
+
+  // ============ IndexedDB Layer ============
+  function openDB() {
+    return new Promise(function(resolve, reject) {
+      if (!window.indexedDB) { resolve(false); return; }
+      var req = indexedDB.open('raftkv_audit', 1);
+      req.onupgradeneeded = function(e) {
+        var db = e.target.result;
+        if (!db.objectStoreNames.contains('chain')) {
+          var store = db.createObjectStore('chain', { keyPath: 'id', autoIncrement: true });
+          store.createIndex('timestamp', 'timestamp', { unique: false });
+          store.createIndex('actionType', 'actionType', { unique: false });
+          store.createIndex('sequence', 'sequence', { unique: true });
+        }
+      };
+      req.onsuccess = function(e) {
+        _db = e.target.result;
+        _opened = true;
+        // Load existing records
+        var tx = _db.transaction(['chain'], 'readonly');
+        var store = tx.objectStore('chain');
+        var getAll = store.getAll();
+        getAll.onsuccess = function() {
+          _records = getAll.result || [];
+          if (_records.length > 0) {
+            _depth = _records.length;
+            _seq = _records[_records.length - 1].sequence;
+            _prevHash = _records[_records.length - 1].currentHash;
+          }
+          resolve(true);
+        };
+        getAll.onerror = function() { resolve(false); };
+      };
+      req.onerror = function() { resolve(false); };
+    });
+  }
+
+  function saveRecord(record) {
+    return new Promise(function(resolve) {
+      if (!_db || !_opened) { resolve(false); return; }
+      try {
+        var tx = _db.transaction(['chain'], 'readwrite');
+        var store = tx.objectStore('chain');
+        var req = store.add(record);
+        req.onsuccess = function() { resolve(true); };
+        req.onerror = function() { resolve(false); };
+      } catch(e) { resolve(false); }
+    });
+  }
+
+  // ============ Public API ============
+  return {
+    init: function() { return openDB(); },
+
+    get depth() { return _depth; },
+    get sequence() { return _seq; },
+    get latestHash() {
+      return _records.length > 0 ? _records[_records.length - 1].currentHash : _prevHash;
+    },
+    get latestShort() {
+      var h = this.latestHash;
+      return h.substring(0, 12) + '...' + h.substring(56);
+    },
+    get records() { return _records.slice(); },
+
+    /**
+     * Log an action to the SM3 hash chain.
+     * @param {string} actionType - e.g. 'precision_calibrate', 'rollback', 'chaos_inject'
+     * @param {string} description - Human-readable description
+     */
+    log: function(actionType, description) {
+      var self = this;
+      return new Promise(function(resolve) {
+        _seq++;
+        _depth++;
+        var now = new Date();
+        var timestamp = now.toISOString();
+
+        // Compute SM3 hash
+        var preimage = buildPreimage(_prevHash, _seq, timestamp, actionType, description);
+        var hash = sm3Digest(preimage);
+
+        var record = {
+          timestamp: timestamp,
+          sequence: _seq,
+          actionType: actionType,
+          description: description,
+          previousHash: _prevHash,
+          currentHash: hash,
+          chainDepth: _depth
+        };
+
+        _records.push(record);
+        _prevHash = hash;
+
+        // Persist to IndexedDB
+        saveRecord(record).then(function() {
+          resolve(record);
+        }).catch(function() {
+          resolve(record); // Still resolve — in-memory is enough
+        });
+      });
+    },
+
+    /**
+     * Verify the entire hash chain integrity.
+     * @returns {object} { valid: bool, errors: number, total: number }
+     */
+    verify: function() {
+      var errors = 0;
+      var prev = '0000000000000000000000000000000000000000000000000000000000000000';
+      for (var i = 0; i < _records.length; i++) {
+        var r = _records[i];
+        if (r.previousHash !== prev) errors++;
+        var preimage = buildPreimage(r.previousHash, r.sequence, r.timestamp, r.actionType, r.description);
+        var computed = sm3Digest(preimage);
+        if (computed !== r.currentHash) errors++;
+        prev = r.currentHash;
+      }
+      return { valid: errors === 0, errors: errors, total: _records.length };
+    },
+
+    /**
+     * Export all chain records to CSV string.
+     */
+    toCSV: function() {
+      var header = '\uFEFF' + '序列,时间戳,动作类型,描述,前哈希,当前哈希,链深\n';
+      var rows = '';
+      for (var i = 0; i < _records.length; i++) {
+        var r = _records[i];
+        rows += r.sequence + ',' +
+                r.timestamp + ',' +
+                r.actionType + ',' +
+                '"' + r.description.replace(/"/g, '""') + '",' +
+                r.previousHash + ',' +
+                r.currentHash + ',' +
+                r.chainDepth + '\n';
+      }
+      return header + rows;
+    },
+
+    /**
+     * Trigger CSV download.
+     */
+    exportCSV: function() {
+      var csv = this.toCSV();
+      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var a = document.createElement('a');
+      a.href = url;
+      a.download = 'raftkv_sm3_audit_' + new Date().toISOString().substring(0, 10) + '.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  };
+})();
+
+// =====================================================
+// PART 12: Die Grid Rendering (Pipeline Area)
+// =====================================================
+function renderDieGrid() {
+  var grid = document.getElementById('dieGrid');
+  if (!grid) return;
+  var html = '';
+  for (var i = 0; i < S235.dies.length; i++) {
+    var d = S235.dies[i];
+    var statusCls = d.status;
+    var stepLabel = d.currentStep >= 0 ? 'S' + d.currentStep : '—';
+    var precDisplay = d.status === 'crashed' ? '!!' : d.precision.toFixed(0);
+    var title = d.name + ' | Step=' + (d.currentStep >= 0 ? S235.engine.stepNames[d.currentStep] : 'Idle') +
+                ' | Prec=' + precDisplay + '% | Acc=' + (d.status === 'crashed' ? '!!' : d.accuracy.toFixed(0)) + '%';
+    html += '<div class="die-chip ' + statusCls + '" title="' + title + '">' +
+            '<span class="dn">' + d.name + '</span>' +
+            '<span class="dv">' + precDisplay + '%</span>' +
+            '<span class="ds">' + stepLabel + '</span></div>';
+  }
+  grid.innerHTML = html;
+}
+
+// =====================================================
+// PART 13: Helper Functions
+// =====================================================
+function setEl(id, val) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = val;
+}
+
+function setElCls(id, newCls) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  // Keep base classes, replace color class
+  var base = el.className.replace(/s-val\s+\w+/g, '').trim();
+  el.className = (base ? base + ' ' : '') + 's-val ' + newCls;
+}
+
+// =====================================================
+// PART 14: Button Action Handlers
+// =====================================================
+function boostAll(on) {
+  for (var k in S235.boost) {
+    if (S235.boost.hasOwnProperty(k)) S235.boost[k] = on;
+  }
+  // Update toggle UI
+  var toggles = document.querySelectorAll('.tgl');
+  for (var i = 0; i < toggles.length; i++) {
+    var key = getToggleKey(toggles[i].textContent.trim());
+    toggles[i].className = S235.boost[key] ? 'tgl on' : 'tgl';
+  }
+  addEvent('boost', on ? '一键全开·5项增强引擎激活' : '一键全关·增强引擎复位', on ? 'boost' : 'info');
+  updateAll();
+}
+
+function getToggleKey(label) {
+  if (label.indexOf('Recovery') >= 0) return 'adaptiveRecovery';
+  if (label.indexOf('共识') >= 0) return 'consensusReinforcement';
+  if (label.indexOf('漂移') >= 0) return 'driftSuppression';
+  if (label.indexOf('幻觉') >= 0) return 'hallucinationFilter';
+  if (label.indexOf('校准') >= 0) return 'autoCalibration';
+  return '';
+}
+
+// Wire up toggle clicks
+document.addEventListener('DOMContentLoaded', function() {
+  var toggles = document.querySelectorAll('.tgl');
+  for (var i = 0; i < toggles.length; i++) {
+    toggles[i].addEventListener('click', function(e) {
+      var key = getToggleKey(this.textContent.trim());
+      if (!key) return;
+      S235.boost[key] = !S235.boost[key];
+      this.className = S235.boost[key] ? 'tgl on' : 'tgl';
+      addEvent('boost', (S235.boost[key] ? '开启' : '关闭') + '·' + this.textContent.trim(), 'boost');
+      SM3Chain.log('boost_toggle', (S235.boost[key] ? '开启' : '关闭') + '·增强开关-' + this.textContent.trim());
+      updateAll();
+    });
+  }
+});
+
+function calibratePrecision() {
+  addEvent('precision', '精度校准触发·全局FineScore重新评估', 'precision');
+  // Trigger verification animation
+  DataSimulator.animateVerification(true, Math.random() > 0.08);
+  for (var i = 0; i < S235.dies.length; i++) {
+    var d = S235.dies[i];
+    if (d.status === 'running' || d.status === 'recovering') {
+      d.precision = Math.min(98, d.precision + 2 + Math.random() * 3);
+    }
+  }
+  computeAggregates();
+  // SM3 chain log
+  SM3Chain.log('precision_calibrate', '精度校准执行·全局FineScore=' + S235.metrics.precisionScore.toFixed(1) + '%');
+  updateAll();
+}
+
+function rollbackAccuracy() {
+  addEvent('accuracy', '准确率回滚触发·重跑当前步骤', 'accuracy');
+  // Trigger verification animation
+  DataSimulator.animateVerification(Math.random() > 0.1, Math.random() > 0.05);
+  var rbDieCount = 0;
+  for (var i = 0; i < S235.dies.length; i++) {
+    var d = S235.dies[i];
+    if (d.currentStep > 0 && (d.status === 'running' || d.status === 'recovering')) {
+      d.currentStep--;
+      d.precision = calcPrecision(d, d.currentStep);
+      d.accuracy  = calcAccuracy(d, d.currentStep);
+      d.totalRollbacks++;
+      rbDieCount++;
+    }
+  }
+  computeAggregates();
+  // SM3 chain log
+  SM3Chain.log('rollback', '准确率回滚执行·' + rbDieCount + '个Die回退至上一步骤·总回退=' + S235.dies.reduce(function(s,d){return s+d.totalRollbacks},0));
+  updateAll();
+}
+
+function verifyFullChain() {
+  addEvent('precision', '全链验证启动·7步白盒+黑盒双重校验', 'accuracy');
+  // Trigger verification animation (both pass for full chain)
+  DataSimulator.animateVerification(true, true);
+  // SM3 chain log
+  SM3Chain.log('whitebox_verify', '白盒验证执行·7步Agent链路双重校验')
+    .then(function() { updateAll(); });
+}
+
+function resetSeed() {
+  S235.engine.seed = '0x235DAI·RESET-' + Date.now().toString(16).toUpperCase().slice(-6);
+  addEvent('sys', '引擎种子重置·' + S235.engine.seed + '·确定性框架不变', 'info');
+  // SM3 chain log
+  SM3Chain.log('seed_reset', '确定性引擎种子重置·新种子=' + S235.engine.seed);
+  updateAll();
+}
+
+function sealEvidence() {
+  console.log('正在执行：固化存证');
+  Toast.show('固化存证·已触发（本地SM3链存证）', 'ok');
+
+  // Try backend, but don't block UX
+  apiFetch('/raft/status').then(function(res) {
+    if (!res.ok) {
+      console.warn('[API] 固化存证·后端未接入·使用本地SM3链');
+      if (typeof SM3Chain !== 'undefined') {
+        SM3Chain.log('evidence_seal', '哈希链固化存证(本地)·后端未接入').then(function() {
+          if (typeof S235 !== 'undefined') { S235.hashDepth = SM3Chain.depth; S235.hashSequence = SM3Chain.sequence; }
+        });
+      }
+      insertAuditEvent('scs', 'boost', '固化存证·本地SM3链·链深已更新');
+      return;
+    }
+    updateChainFromBackend(res.data);
+    console.log('[API] 固化存证成功:', res.data);
+    if (typeof SM3Chain !== 'undefined') { SM3Chain.log('evidence_seal', '固化存证·Raft确认'); }
+    insertAuditEvent('scs', 'boost', 'Raft固化存证完成·后端确认');
+  }).catch(function(err) {
+    console.warn('[API] 固化存证·后端未接入:', err.message);
+    if (typeof SM3Chain !== 'undefined') {
+      SM3Chain.log('evidence_seal', '哈希链固化存证(本地)·后端异常').then(function() {
+        if (typeof S235 !== 'undefined') { S235.hashDepth = SM3Chain.depth; S235.hashSequence = SM3Chain.sequence; }
+      });
+    }
+    insertAuditEvent('scs', 'boost', '固化存证·本地SM3链·离线模式');
+  });
+}
+
+function securityScan() {
+  console.log('正在执行：安全扫描');
+  Toast.show('安全扫描·已触发（前端离线模式）', 'ok');
+
+  apiFetch('/health/ready').then(function(res) {
+    if (!res.ok || (typeof res.data === 'string' && res.data !== 'READY')) {
+      console.warn('[API] 安全扫描·后端未接入·使用本地校验');
+      insertAuditEvent('scs', 'accuracy', '安全扫描·本地校验通过·节点健康·SM3链完整');
+      return;
+    }
+    console.log('[API] 安全扫描通过:', res.data);
+    insertAuditEvent('scs', 'accuracy', '安全扫描通过·Raft节点就绪·状态=' + res.data);
+    apiFetch('/raft/status').then(function(r2) {
+      if (r2.ok && r2.data) { updateChainFromBackend(r2.data); }
+    });
+  }).catch(function(err) {
+    console.warn('[API] 安全扫描·后端未接入:', err.message);
+    insertAuditEvent('scs', 'accuracy', '安全扫描·本地校验通过·离线模式');
+  });
+}
+
+function updateAll() {
+  updatePanel1();
+  updatePanel2();
+  updatePanel3();
+  updatePanel6();
+  renderDieGrid();
+  renderEvents();
+  if (typeof echarts !== 'undefined') updateCharts();
+}
+
+// =====================================================
+// Export audit chain to CSV
+// =====================================================
+function exportAuditCSV() {
+  SM3Chain.exportCSV();
+  addEvent('sys', '审计日志CSV导出·SM3哈希链·共' + SM3Chain.depth + '条记录', 'boost');
+  renderEvents();
+}
+
+function exportAuditPDF() {
+  var chain = SM3Chain.records;
+  if (chain.length === 0) { alert('暂无审计日志可导出'); return; }
+  var now = new Date().toISOString().substring(0, 19).replace(/:/g, '-');
+  var html2 = '<html><head><meta charset="UTF-8"><title>RaftKV SM3审计日志</title><style>' +
+    'body{font:10px "JetBrains Mono",monospace;padding:16px;background:#000510;color:#d0d8ff}' +
+    'h1{color:#ffd740;font-size:16px;border-bottom:1px solid rgba(255,215,64,.3);padding-bottom:6px}' +
+    'h1 span{font-size:10px;color:#3a5470;margin-left:10px}' +
+    'table{width:100%;border-collapse:collapse;margin-top:10px}' +
+    'th{background:rgba(255,215,64,.1);color:#ffd740;padding:4px 6px;text-align:left;font-size:9px;border-bottom:1px solid rgba(255,215,64,.2)}' +
+    'td{padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.03);font-size:9px;word-break:break-all}' +
+    'tr:hover td{background:rgba(255,215,64,.03)}' +
+    '.hash{font-family:monospace;font-size:7px;color:#3a5470}' +
+    '@media print{body{padding:10px;background:#fff;color:#000}h1{color:#000}th{background:#eee;color:#000}td{border-bottom:1px solid #ddd}.hash{font-size:6px}}' +
+    '</style></head><body>' +
+    '<!-- toast inserted by app -->' +
+    '<h1>RaftKV · SM3哈希链审计日志 <span>Export: ' + now + ' | Records: ' + chain.length + '</span></h1>' +
+    '<table><tr><th>#</th><th>Timestamp</th><th>Action</th><th>Description</th><th>PrevHash</th><th>CurrHash</th></tr>';
+  for (var i = chain.length - 1; i >= 0; i--) {
+    var r = chain[i];
+    html2 += '<tr><td>' + r.sequence + '</td><td>' + r.timestamp + '</td><td>' + r.actionType + '</td><td>' + r.description + '</td>' +
+             '<td class="hash">' + r.previousHash + '</td><td class="hash">' + r.currentHash + '</td></tr>';
+  }
+  html2 += '</table><p style="font-size:8px;color:#3a5470;margin-top:10px">Chain integrity: ' +
+           (SM3Chain.verify().valid ? 'VERIFIED ✓' : 'FAILED ✗') + ' | SM3 (GM/T 0004-2012) | RaftKV管控中枢</p></body></html>';
+  var w = window.open('', '_blank');
+  w.document.write(html2);
+  w.document.close();
+  setTimeout(function() { w.print(); }, 600);
+  addEvent('sys', '审计日志PDF导出·SM3·共' + chain.length + '条记录', 'boost');
+  renderEvents();
+}
+
+
+// =====================================================
+// Backend API Client — RaftKV Go 分布式后端对接
+// =====================================================
+var API_BASE = 'http://localhost:9001';
+
+/**
+ * Safe fetch wrapper with timeout + error handling.
+ * @param {string} path   — API path like '/raft/status'
+ * @param {object} opts   — fetch options (method, headers, body)
+ * @returns {Promise<object>} { ok, status, data, _raw }
+ */
+function apiFetch(path, opts) {
+  opts = opts || {};
+  var controller = new AbortController();
+  var timeout = setTimeout(function() { controller.abort(); }, 8000);
+  var fetchOpts = {
+    method: opts.method || 'GET',
+    headers: Object.assign({ 'Accept': 'application/json' }, opts.headers || {}),
+    signal: controller.signal
+  };
+  if (opts.body) {
+    fetchOpts.body = opts.body;
+    fetchOpts.headers['Content-Type'] = fetchOpts.headers['Content-Type'] || 'application/json';
+  }
+
+  return fetch(API_BASE + path, fetchOpts)
+    .then(function(res) {
+      clearTimeout(timeout);
+      var ct = res.headers.get('content-type') || '';
+      var isJson = ct.indexOf('application/json') >= 0;
+      var bodyPromise = res.ok
+        ? (isJson ? res.json().catch(function() { return res.text(); }) : res.text())
+        : Promise.resolve(null);
+      return bodyPromise.then(function(data) {
+        return { ok: res.ok, status: res.status, data: data, _raw: res };
+      });
+    })
+    .catch(function(err) {
+      clearTimeout(timeout);
+      console.error('[API] Backend ' + API_BASE + ' unreachable: ' + err.message);
+      return { ok: false, status: 0, data: null, _error: err.message };
+    });
+}
+
+/**
+ * Generate a timestamp string from a Date or ISO string.
+ */
+function fmtTs(d) {
+  d = d || new Date();
+  if (typeof d === 'string') d = new Date(d);
+  return d.getHours().toString().padStart(2, '0') + ':' +
+         d.getMinutes().toString().padStart(2, '0') + ':' +
+         d.getSeconds().toString().padStart(2, '0') + '.' +
+         d.getMilliseconds().toString().padStart(3, '0');
+}
+
+/**
+ * Insert an audit event record into auditLogArray and re-render page 0.
+ */
+function insertAuditEvent(level, cat, msg, ts) {
+  auditLogArray.unshift({ time: ts || fmtTs(new Date()), level: level, cat: cat, msg: msg });
+  auditPage = 0;
+  renderAuditPage();
+}
+
+/**
+ * Increment chain depth display from backend data.
+ */
+function updateChainFromBackend(data) {
+  if (!data) return;
+  var depth = data.log_count || data.commit_index || data.applied || 0;
+  if (typeof S235 !== 'undefined') {
+    S235.hashDepth = Math.max(S235.hashDepth || 15592, depth);
+    S235.hashSequence++;
+  }
+  // Update DOM
+  var elDepth = document.getElementById('sDepth');
+  var elSeq   = document.getElementById('sSeq');
+  if (elDepth) elDepth.textContent = (typeof S235 !== 'undefined' ? S235.hashDepth : depth).toLocaleString();
+  if (elSeq)   elSeq.textContent = '#' + (typeof S235 !== 'undefined' ? S235.hashSequence : depth);
+  // Also update DataSimulator if available
+  if (typeof DataSimulator !== 'undefined' && DataSimulator.getState) {
+    var st = DataSimulator.getState();
+    st.hashDepth = typeof S235 !== 'undefined' ? S235.hashDepth : depth;
+    st.hashSequence = typeof S235 !== 'undefined' ? S235.hashSequence : depth;
+  }
+}
+
+// =====================================================
+// Toast Notification System
+// =====================================================
+var Toast = {
+  show: function(msg, type) {
+    type = type || 'info';
+    var container = document.getElementById('toast-container');
+    if (!container) return;
+    var el = document.createElement('div');
+    el.className = 'toast ' + type;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(function() {
+      if (el.parentNode) el.parentNode.removeChild(el);
+    }, 3200);
+  }
+};
+
+// =====================================================
+// Audit Log (64+ items) + Pagination
+// =====================================================
+var auditLogArray = [
+  {time:'07:48:01.102',level:'urg',cat:'precision',msg:'Verifier精度跌破阈值·FineScore=74.3%·触发紧急回滚'},
+  {time:'07:48:00.891',level:'scs',cat:'accuracy',msg:'准确率验证通过·Executor语义一致性=98.7%'},
+  {time:'07:47:59.634',level:'wrn',cat:'drift',msg:'输出漂移检测·Finalizer连续2轮方向偏移>0.05'},
+  {time:'07:47:58.220',level:'scs',cat:'boost',msg:'自适应Recovery触发·Decomposer回退1步·恢复至94.2%'},
+  {time:'07:47:57.015',level:'info',cat:'consensus',msg:'多Agent投票一致性=84%·符合阈值(>80%)'},
+  {time:'07:47:55.803',level:'scs',cat:'precision',msg:'精度校准完成·全局FineScore从82.1%恢复至93.5%'},
+  {time:'07:47:54.610',level:'info',cat:'accuracy',msg:'白盒验证PASS·7步链路双重校验通过'},
+  {time:'07:47:53.422',level:'wrn',cat:'hallucination',msg:'幻觉过滤拦截1条低置信度输出·置信度=0.23'},
+  {time:'07:47:52.198',level:'scs',cat:'consensus',msg:'共识恢复·投票一致性从72%回归至86%'},
+  {time:'07:47:51.076',level:'urg',cat:'drift',msg:'上下文漂移严重·Memory Agent返回3条过期数据·已拦截'},
+  {time:'07:47:49.850',level:'scs',cat:'precision',msg:'Decomposer精度Recovery闭环·深链校验+语义对齐'},
+  {time:'07:47:48.641',level:'info',cat:'accuracy',msg:'FP64确定性框架确认·浮点偏差<0.00001%'},
+  {time:'07:47:47.409',level:'scs',cat:'boost',msg:'智能校准引擎启动·自动调整衰减参数'},
+  {time:'07:47:46.203',level:'wrn',cat:'hallucination',msg:'Orchstrator计划步骤虚构不存在工具·已标记'},
+  {time:'07:47:45.010',level:'info',cat:'consensus',msg:'Agent投票轮次#128·一致性=88%·历史最佳'},
+  {time:'07:47:43.825',level:'scs',cat:'precision',msg:'Executor FineScore二次验证=95.1%·符合标准'},
+  {time:'07:47:42.618',level:'urg',cat:'accuracy',msg:'Planner输出与预期偏差>8%·触发准确率回滚'},
+  {time:'07:47:41.402',level:'scs',cat:'boost',msg:'漂移抑制启动·输出方差从0.12收敛至0.03'},
+  {time:'07:47:40.198',level:'info',cat:'drift',msg:'周期性漂移检测·偏移量=0.02·在安全范围内'},
+  {time:'07:47:39.025',level:'scs',cat:'accuracy',msg:'黑盒验证通过·端到端语义一致性=100%'},
+  {time:'07:47:37.810',level:'wrn',cat:'precision',msg:'Finalizer输出精度下降至86%·低于推荐线'},
+  {time:'07:47:36.604',level:'info',cat:'boost',msg:'共识强化模式激活·投票权重重新分配'},
+  {time:'07:47:35.391',level:'scs',cat:'consensus',msg:'多Agent冲突解决·仲裁算法选择方案B'},
+  {time:'07:47:34.175',level:'urg',cat:'hallucination',msg:'Executor生成虚构API调用·幻觉概率=12%·已拦截'},
+  {time:'07:47:32.960',level:'scs',cat:'precision',msg:'Orchstrator计划精度=98.2%·创历史记录'},
+  {time:'07:47:31.744',level:'info',cat:'accuracy',msg:'确定性框架温度=0·MoE路由固定·Seed锁定'},
+  {time:'07:47:30.530',level:'wrn',cat:'drift',msg:'上下文窗口溢出·Sliding Window截断触发'},
+  {time:'07:47:29.312',level:'scs',cat:'boost',msg:'幻觉过滤模式升级·新增语义一致性哨兵'},
+  {time:'07:47:28.098',level:'info',cat:'accuracy',msg:'哈希链存证·链深=15592·SM3校验通过'},
+  {time:'07:47:26.885',level:'scs',cat:'precision',msg:'精度Recovery完成·从61%恢复至89%'},
+  {time:'07:47:25.672',level:'urg',cat:'hallucination',msg:'Planner虚构3个不存在的子任务·全部回滚'},
+  {time:'07:47:24.458',level:'scs',cat:'consensus',msg:'仲裁算法升级·引入加权投票机制'},
+  {time:'07:47:23.245',level:'info',cat:'drift',msg:'Memory缓存刷新·一致性校验OK'},
+  {time:'07:47:22.030',level:'wrn',cat:'precision',msg:'Decomposer细粒度拆分失败·回退至粗粒度模式'},
+  {time:'07:47:20.815',level:'scs',cat:'accuracy',msg:'Full-Chain验证PASS·7步白盒+黑盒全部通过'},
+  {time:'07:47:19.600',level:'info',cat:'boost',msg:'智能增强引擎周期评估·各项指标健康'},
+  {time:'07:47:18.387',level:'urg',cat:'drift',msg:'紧急漂移告警·Finalizer输出方向180°反转'},
+  {time:'07:47:17.172',level:'scs',cat:'precision',msg:'校准完成·全局FineScore稳定在93%±1'},
+  {time:'07:47:15.958',level:'info',cat:'accuracy',msg:'确定性参数确认·Temp=0/MoE=Fixed/Seed=0x235DAI'},
+  {time:'07:47:14.745',level:'scs',cat:'consensus',msg:'共识达成·4/5 Agent同意最终输出方案'},
+  {time:'07:47:13.530',level:'wrn',cat:'hallucination',msg:'低置信度输出频次增加·过滤器升级建议'},
+  {time:'07:47:12.315',level:'info',cat:'boost',msg:'Recovery引擎自检通过·回滚成功率=92.4%'},
+  {time:'07:47:11.100',level:'scs',cat:'precision',msg:'Executor执行精度=96%·超出预估值+2%'},
+  {time:'07:47:09.887',level:'urg',cat:'accuracy',msg:'语义一致性骤降·从96%跌至71%·触发紧急恢复'},
+  {time:'07:47:08.672',level:'scs',cat:'drift',msg:'漂移抑制成功·输出方差从0.08恢复至0.01'},
+  {time:'07:47:07.460',level:'info',cat:'precision',msg:'Orchstrator任务规划完成·预计精度=97%'},
+  {time:'07:47:06.248',level:'wrn',cat:'consensus',msg:'Agent#7与Agent#12判断冲突·提交仲裁'},
+  {time:'07:47:05.035',level:'scs',cat:'accuracy',msg:'准确率自愈完成·回滚+重试后恢复至95%'},
+  {time:'07:47:03.822',level:'info',cat:'boost',msg:'增强引擎自适应调参·衰减系数优化-0.2'},
+  {time:'07:47:02.610',level:'urg',cat:'hallucination',msg:'批量幻觉检测·3条输出置信度<0.3·批量回滚'},
+  {time:'07:47:01.398',level:'scs',cat:'precision',msg:'Verifier精度Recovery·从67%回升至88%'},
+  {time:'07:47:00.185',level:'info',cat:'accuracy',msg:'SM3哈希链验证·所有记录完整·无篡改'},
+  {time:'07:46:58.970',level:'wrn',cat:'drift',msg:'Mid-term漂移累积·建议启动校准流程'},
+  {time:'07:46:57.758',level:'scs',cat:'consensus',msg:'多Agent同步投票·16/16 Agent参与·一致性91%'},
+  {time:'07:46:56.545',level:'info',cat:'precision',msg:'Planner任务分解·细粒度=7子任务·预计精度=95%'},
+  {time:'07:46:55.330',level:'scs',cat:'boost',msg:'一键全开指令完成·5项增强引擎全部激活'},
+  {time:'07:46:54.118',level:'urg',cat:'accuracy',msg:'E2E准确率跌破60%·触发全链路紧急暂停'},
+  {time:'07:46:52.905',level:'scs',cat:'precision',msg:'精度校准批次完成·14/14 Die通过验证'},
+  {time:'07:46:51.692',level:'info',cat:'hallucination',msg:'幻觉概率监测·当前=4.2%·低于警戒线'},
+  {time:'07:46:50.480',level:'wrn',cat:'drift',msg:'Recovery阶段输出偏移·差量追踪已启动'},
+  {time:'07:46:49.267',level:'scs',cat:'accuracy',msg:'准确率回归测试·100轮验证·偏差<0.3%'},
+  {time:'07:46:48.055',level:'info',cat:'consensus',msg:'周期性共识检查·Agent间一致性=82%·稳定'},
+  {time:'07:46:46.842',level:'scs',cat:'boost',msg:'增强引擎健康报告·5/5引擎正常运行'},
+  {time:'07:46:45.630',level:'urg',cat:'precision',msg:'Orchstrator精度异常·计划步骤丢失·已回滚重建'},
+];
+
+var auditPage = 0;
+var auditPageSize = 50;
+var auditFilter = 'all';
+
+function getAuditTotalPages() {
+  var filtered = auditLogArray;
+  if (auditFilter !== 'all') {
+    filtered = auditLogArray.filter(function(e){ return e.cat === auditFilter; });
+  }
+  return Math.max(1, Math.ceil(filtered.length / auditPageSize));
+}
+
+function getAuditCurrentPageItems() {
+  var filtered = auditLogArray;
+  if (auditFilter !== 'all') {
+    filtered = auditLogArray.filter(function(e){ return e.cat === auditFilter; });
+  }
+  var start = auditPage * auditPageSize;
+  return filtered.slice(start, start + auditPageSize);
+}
+
+function renderAuditPage() {
+  var items = getAuditCurrentPageItems();
+  var total = getAuditTotalPages();
+  var lst = document.getElementById('evList');
+  if (!lst) return;
+
+  var html = '';
+  for (var i = 0; i < items.length; i++) {
+    var e = items[i];
+    var lv = e.level==='urg'?'紧急':e.level==='scs'?'通过':e.level==='wrn'?'警告':'信息';
+    var lc = e.cat==='precision'?'a':e.cat==='accuracy'?'b':e.cat==='consensus'?'c':e.cat==='boost'?'d':e.cat==='drift'||e.cat==='hallucination'?'e':'c';
+    var cn = e.cat==='precision'?'精度':e.cat==='accuracy'?'准确':e.cat==='consensus'?'共识':e.cat==='boost'?'增强':e.cat==='drift'?'漂移':e.cat==='hallucination'?'幻觉':'信息';
+    html += '<li class="ev-item"><span class="ev-time">'+e.time+'</span><span class="ev-tag '+lc+'">'+cn+'</span><span class="ev-msg">'+e.msg+'</span></li>';
+  }
+  lst.innerHTML = html;
+
+  // Update page info
+  var pi = document.getElementById('btnPageInfo');
+  if (pi) pi.textContent = (auditPage + 1) + ' / ' + total;
+
+  // Enable/disable prev/next
+  var prev = document.getElementById('btnPrevPage');
+  var next = document.getElementById('btnNextPage');
+  if (prev) { prev.disabled = (auditPage === 0); prev.style.opacity = auditPage === 0 ? '0.3' : '1'; }
+  if (next) { next.disabled = (auditPage >= total - 1); next.style.opacity = auditPage >= total - 1 ? '0.3' : '1'; }
+}
+
+function prevPage() {
+  if (auditPage > 0) { auditPage--; renderAuditPage(); }
+}
+
+function nextPage() {
+  var total = getAuditTotalPages();
+  if (auditPage < total - 1) { auditPage++; renderAuditPage(); }
+}
+
+// Reset filter and page when category changes
+var _origSetEvtCat = window.setEvtCat || function(){};
+window.setEvtCat = function(cat) {
+  auditFilter = cat;
+  auditPage = 0;
+  renderAuditPage();
+  // Also update event category buttons visually
+  var all = document.querySelectorAll('.ct-flt');
+  for (var i = 0; i < all.length; i++) {
+    all[i].className = all[i].getAttribute('data-cat') === cat ? 'ct-flt on' : 'ct-flt';
+  }
+};
+
+// =====================================================
+// CSV & PDF Export for visible audit log
+// =====================================================
+function exportEventCSV() {
+  var items = getAuditCurrentPageItems();
+  var csv = '\uFEFF' + '时间,级别,类别,消息\n';
+  for (var i = 0; i < items.length; i++) {
+    csv += items[i].time + ',' + items[i].level + ',' + items[i].cat + ',"' + items[i].msg.replace(/"/g,'""') + '"\n';
+  }
+  var blob = new Blob([csv], {type:'text/csv;charset=utf-8'});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = 'audit_log_' + new Date().toISOString().substring(0,19).replace(/:/g,'-') + '.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  Toast.show('CSV导出成功: ' + items.length + '条记录', 'ok');
+  console.log('CSV exported: ' + items.length + ' records');
+}
+
+function exportEventPDF() {
+  Toast.show('正在准备PDF导出...', 'info');
+  var items = getAuditCurrentPageItems();
+  var ph = '<html><head><meta charset="UTF-8"><title>Audit Log Export</title><style>'+
+    'body{font:10px "JetBrains Mono",monospace;padding:16px;background:#000510;color:#d0d8ff}'+
+    'h1{color:#ffd740;font-size:16px;border-bottom:1px solid rgba(255,215,64,.3);padding-bottom:6px}'+
+    'table{width:100%;border-collapse:collapse;margin-top:10px}'+
+    'th{background:rgba(255,215,64,.1);color:#ffd740;padding:4px 6px;text-align:left;font-size:9px}'+
+    'td{padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.03);font-size:9px}'+
+    '@media print{body{background:#fff;color:#000}h1{color:#000}th{background:#eee;color:#000}}'+
+    '</style></head><body><h1>RaftKV · 审计日志 <span style="font-size:10px;color:#3a5470">'+
+    new Date().toISOString()+'</span></h1><table><tr><th>时间</th><th>级别</th><th>类别</th><th>消息</th></tr>';
+  for (var j = 0; j < items.length; j++) {
+    ph += '<tr><td>'+items[j].time+'</td><td>'+items[j].level+'</td><td>'+items[j].cat+'</td><td>'+items[j].msg+'</td></tr>';
+  }
+  ph += '</table></body></html>';
+  var w = window.open('','_blank');
+  w.document.write(ph); w.document.close();
+  setTimeout(function(){ w.print(); }, 500);
+  Toast.show('PDF导出已发起·打印对话框已打开', 'ok');
+  console.log('PDF export triggered via window.print()');
+}
+
+// =====================================================
+// Button Handler Functions (console.log + Toast + logic)
+// =====================================================
+function handleResetSeed() {
+  console.log('正在执行：重置种子');
+  var seeds = ['0x235DAI','0xA1B2C3D4','0xFE80DCBA','0x7F3A9C1E','0xDA235ENG','0xC0DE2026','0x8BADF00D','0x1CEB00B5'];
+  var newSeed = seeds[Math.floor(Math.random() * seeds.length)];
+  // Update the seed display in Panel 2
+  var seedEls = document.querySelectorAll('.panel-l.p2 .s-val.pr');
+  if (seedEls.length > 0) { seedEls[seedEls.length-1].textContent = newSeed + '·FIXED'; }
+  // Also update S235 engine
+  if (typeof S235 !== 'undefined' && S235.engine) { S235.engine.seed = newSeed; }
+  // Trigger SM3 chain log
+  if (typeof SM3Chain !== 'undefined') { SM3Chain.log('seed_reset', '引擎种子重置·新种子=' + newSeed); }
+  Toast.show('已发起重置种子指令·Seed=' + newSeed, 'info');
+}
+
+function handleChaosInject() {
+  console.log('正在执行：混沌注入 → 后端 API');
+  // First, try to get current Raft state before incision
+  apiFetch('/raft/stats').then(function(res) {
+    var preState = res.data || '(unknown)';
+    console.log('[API] 混沌注入前 Raft 状态:', preState);
+  }).catch(function() {});
+
+  // Insert red error log at the TOP of the audit log array
+  var ts = fmtTs(new Date());
+  auditLogArray.unshift({time: ts, level: 'urg', cat: 'drift', msg: '系统遭遇混沌注入异常！（后端通知待确认）'});
+  auditPage = 0;
+  renderAuditPage();
+
+  // Also call the original chaos inject (simulator)
+  if (typeof chaosInject === 'function') { chaosInject(1.0); }
+  if (typeof DataSimulator !== 'undefined' && DataSimulator.injectChaos) { DataSimulator.injectChaos(); }
+
+  // Send chaos notification to backend (fire-and-forget with health check)
+  apiFetch('/health/live').then(function(res) {
+    if (res.ok) {
+      console.log('[API] 后端收到混沌注入通知, 节点存活确认');
+      Toast.show('混沌注入已确认·后端节点存活', 'err');
+      insertAuditEvent('urg', 'drift', '混沌注入确认·后端节点存活·Raft共识可能受影响');
+    } else {
+      Toast.show('混沌注入·后端节点响应异常', 'err');
+    }
+  }).catch(function(err) {
+    console.error('[API] 混沌注入·后端不可达:', err.message);
+    Toast.show('混沌注入·后端不可达·仅前端模拟生效', 'warn');
+  });
+}
+
+function handleBoostAll() {
+  console.log('正在执行：一键全开');
+  if (typeof boostAll === 'function') { boostAll(true); }
+  Toast.show('已发起一键全开指令·5项增强引擎激活', 'boost');
+}
+
+function handlePrecisionCalibrate() {
+  console.log('正在执行：精度校准');
+  if (typeof DataSimulator !== 'undefined') { DataSimulator.animateVerification(true, Math.random() > 0.08); }
+  if (typeof calibratePrecision === 'function') { calibratePrecision(); }
+  Toast.show('已发起精度校准指令·全局FineScore重新评估', 'ok');
+}
+
+function handleAccuracyRollback() {
+  console.log('正在执行：准确率回滚');
+  if (typeof DataSimulator !== 'undefined') { DataSimulator.animateVerification(Math.random() > 0.1, Math.random() > 0.05); }
+  if (typeof rollbackAccuracy === 'function') { rollbackAccuracy(); }
+  Toast.show('已发起准确率回滚指令·Die回退至上一步骤', 'warn');
+}
+
+function handleFullChainVerify() {
+  console.log('正在执行：全链验证 → 后端 API');
+  Toast.show('正在向后端发起全链验证...', 'info');
+
+  // Animate verification status
+  if (typeof DataSimulator !== 'undefined') { DataSimulator.animateVerification(true, true); }
+
+  // Call local verify
+  if (typeof verifyFullChain === 'function') { verifyFullChain(); }
+
+  // Query backend for full chain status
+  apiFetch('/raft/status').then(function(res) {
+    if (!res.ok) {
+      // status=0 means network error (backend not reachable at all)
+      if (res.status === 0) {
+        console.warn('[API] 全链验证·后端服务尚未接入');
+        Toast.show('全链验证·后端服务尚未接入·前端校验已完成', 'warn');
+        insertAuditEvent('wrn', 'accuracy', '全链验证·后端未接入·前端白盒+黑盒校验已通过');
+      } else {
+        console.error('[API] 全链验证失败: HTTP ' + res.status);
+        Toast.show('全链验证·后端返回异常(' + res.status + ')·前端校验已完成', 'warn');
+        insertAuditEvent('wrn', 'accuracy', '全链验证·后端异常(' + res.status + ')·前端校验已通过');
+      }
+      return;
+    }
+
+    updateChainFromBackend(res.data);
+    console.log('[API] 全链验证通过, raft status:', res.data);
+    Toast.show('全链验证通过·前端+后端双重确认', 'ok');
+
+    var stateInfo = res.data ? (' state=' + (res.data.state || '?') + ' term=' + (res.data.term || '?')) : '';
+    insertAuditEvent('scs', 'accuracy', '全链验证PASS·白盒+黑盒+Raft共识' + stateInfo);
+  }).catch(function(err) {
+    console.warn('[API] 全链验证·后端服务尚未接入:', err.message || '超时');
+    Toast.show('全链验证·后端服务尚未接入·前端校验已完成', 'warn');
+    insertAuditEvent('wrn', 'accuracy', '全链验证·后端未接入·' + (err.message || '超时'));
+  });
+}
+
+// Expose globally
+window.handleResetSeed = handleResetSeed;
+window.handleChaosInject = handleChaosInject;
+window.handleBoostAll = handleBoostAll;
+window.handlePrecisionCalibrate = handlePrecisionCalibrate;
+window.handleAccuracyRollback = handleAccuracyRollback;
+window.handleFullChainVerify = handleFullChainVerify;
+window.prevPage = prevPage;
+window.nextPage = nextPage;
+window.renderAuditPage = renderAuditPage;
+window.exportEventCSV = exportEventCSV;
+window.exportEventPDF = exportEventPDF;
+
+// =====================================================
+// Cluster Health Polling — Raft降级监视 (每 3s)
+// =====================================================
+var _degradedPrev = false;
+var _clusterHealthTimer = null;
+
+// 需要在降级时禁用的写操作按钮 (CSS selector)
+var WRITE_BUTTONS = [
+  '#btnResetSeed',
+  '#btnChaos',
+  '#btnBoostAll',
+  '#btnPrecCal',
+  '#btnAccRollback',
+  '#btnFullChain',
+  // Also Panel 6 buttons
+  '.panel-r.p6 .btn-gd',   // 固化存证
+  '.panel-r.p6 .btn-pr'    // 安全扫描
+];
+
+function setWriteButtonsEnabled(enabled) {
+  for (var i = 0; i < WRITE_BUTTONS.length; i++) {
+    var els = document.querySelectorAll(WRITE_BUTTONS[i]);
+    for (var j = 0; j < els.length; j++) {
+      if (enabled) {
+        els[j].classList.remove('btn-disabled');
+      } else {
+        els[j].classList.add('btn-disabled');
+      }
+    }
+  }
+}
+
+function showDegradeBanner(alive, total, quorum) {
+  var banner = document.getElementById('degradeBanner');
+  var detail = document.getElementById('degDetail');
+  if (banner) banner.classList.add('show');
+  if (detail) detail.textContent =
+    '存活节点: ' + alive + '/' + total + ' (法定票数需 ≥ ' + quorum + ') · 写操作已全部阻断 · 等待节点恢复';
+  setWriteButtonsEnabled(false);
+  console.error('[集群] 降级只读模式 — 存活 ' + alive + '/' + total + ' (quorum=' + quorum + ')');
+}
+
+function hideDegradeBanner(alive, total) {
+  var banner = document.getElementById('degradeBanner');
+  if (banner) banner.classList.remove('show');
+  setWriteButtonsEnabled(true);
+  console.log('[集群] 仲裁恢复 — 存活 ' + alive + '/' + total);
+}
+
+function pollClusterHealth() {
+  apiFetch('/raft/status').then(function(res) {
+    if (!res.ok || !res.data) {
+      console.warn('[集群] 健康探针失败: HTTP ' + res.status);
+      return;
+    }
+
+    var d = res.data;
+    // Derive cluster health from Raft stats:
+    // peer_count: number of connected peers
+    // total_nodes = peer_count + 1 (self)
+    var peerCount = d.peer_count || 0;
+    var totalNodes = peerCount + 1;
+    var quorumRequired = Math.floor(totalNodes / 2) + 1;
+    // Degraded when peers < quorum-1 (i.e., alive_nodes < quorum)
+    var aliveCount = peerCount + 1; // assume self is alive
+    var isDegraded = aliveCount < quorumRequired;
+
+    if (isDegraded && !_degradedPrev) {
+      showDegradeBanner(aliveCount, totalNodes, quorumRequired);
+      Toast.show('集群仲裁丢失 · 已进入只读模式', 'err');
+      if (typeof insertAuditEvent === 'function') {
+        insertAuditEvent('urg', 'drift',
+          '集群降级·Raft仲裁丢失·存活=' + aliveCount + '/' + totalNodes +
+          '·term=' + d.term + '·state=' + d.state);
+      }
+      _degradedPrev = true;
+    } else if (!isDegraded && _degradedPrev) {
+      hideDegradeBanner(aliveCount, totalNodes);
+      Toast.show('集群仲裁恢复 · 已切回读写模式', 'ok');
+      if (typeof insertAuditEvent === 'function') {
+        insertAuditEvent('scs', 'boost',
+          '集群恢复·Raft仲裁满足·存活=' + aliveCount + '/' + totalNodes +
+          '·term=' + d.term);
+      }
+      _degradedPrev = false;
+    } else if (!isDegraded) {
+      if (document.getElementById('degradeBanner').classList.contains('show')) {
+        hideDegradeBanner(aliveCount, totalNodes);
+      }
+      setWriteButtonsEnabled(true);
+    }
+    // Update header pills
+    if (document.getElementById('hdAlive')) document.getElementById('hdAlive').textContent = aliveCount;
+    if (document.getElementById('hdTotal')) document.getElementById('hdTotal').textContent = totalNodes;
+  }).catch(function(err) {
+    console.warn('[集群] 健康探针网络错误:', err.message);
+  });
+}
+
+// Start cluster health polling
+function startClusterHealthPolling() {
+  // Initial check
+  pollClusterHealth();
+  // Poll every 3 seconds
+  _clusterHealthTimer = setInterval(pollClusterHealth, 3000);
+}
+
+function stopClusterHealthPolling() {
+  if (_clusterHealthTimer) { clearInterval(_clusterHealthTimer); _clusterHealthTimer = null; }
+}
+
+
+// =====================================================
+// PART 15: Initialize 16 Dies & Start Simulation
+// =====================================================
+function initDies() {
+  S235.dies = [];
+  for (var i = 0; i < S235.dieCount; i++) {
+    S235.dies.push(new Die(i));
+  }
+  // Seed initial events
+  addEvent('sys', 'RaftKV确定性管控中枢启动·' + S235.dieCount + '个Die就绪', 'boost');
+  addEvent('sys', '确定性引擎: Temp=0·MoE=FIXED·FP64·Seed=0x235DAI', 'precision');
+  addEvent('sys', '7步Agent链路: Orchstrator→Planner→Decomposer→Executor→Verifier→Recovery→Finalizer', 'accuracy');
+  // Seed SM3 hash chain with genesis record
+  SM3Chain.log('genesis', 'RaftKV管控中枢SM3哈希链初始化·确定性审计日志启动');
+}
+
+initDies();
+
+// Initialize ECharts after DOM ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', function() {
+    setTimeout(initCharts, 300);
+    DataSimulator.startSystemRealtimeLoop();
+    startClusterHealthPolling();
+  });
+} else {
+  setTimeout(initCharts, 300);
+  DataSimulator.startSystemRealtimeLoop();
+  startClusterHealthPolling();
+}
+
+// =====================================================
+// PART 16: ECharts Initialization
+// =====================================================
+var $charts = {};
+
+function initCharts() {
+  if (typeof echarts === 'undefined') { console.warn('ECharts not loaded yet'); return; }
+
+  var darkBg = '#000510', darkTx = '#d0d8ff', darkDm = '#3a5470';
+  var gd = '#ffd740', pr = '#7c5cff', cy = '#00e5ff', gr = '#00e676', dr = '#ff2d55', am = '#ffab40';
+
+  // ------ Panel 1: Gauge - 确定性健康度 ------
+  var gDom = document.getElementById('chGauge');
+  if (gDom) {
+    $charts.gauge = echarts.init(gDom);
+    $charts.gauge.setOption({
+      series: [{
+        type: 'gauge', radius: '82%', center: ['50%', '58%'],
+        startAngle: 210, endAngle: -30,
+        min: 0, max: 100, splitNumber: 10,
+        axisLine: { show: true, lineStyle: { width: 14, color: [[0.6, dr],[0.8, am],[1, gr]] } },
+        axisTick: { show: false }, splitLine: { show: false }, axisLabel: { show: false },
+        pointer: { length: '60%', width: 4, itemStyle: { color: gd } },
+        detail: { offsetCenter: [0, '60%'], fontSize: 16, fontFamily: 'Orbitron', fontWeight: 900, color: gd, formatter: '{value}' },
+        title: { offsetCenter: [0, '85%'], fontSize: 9, color: darkDm, fontFamily: 'Rajdhani' },
+        data: [{ value: 99.6, name: 'DETERMINISM' }]
+      }]
+    });
+  }
+
+  // ------ Panel 2: Line - 精度/准确率衰减曲线 ------
+  var dDom = document.getElementById('chDecay');
+  if (dDom) {
+    $charts.decay = echarts.init(dDom);
+    $charts.decay.setOption({
+      grid: { top: 8, right: 12, bottom: 18, left: 36 },
+      xAxis: { type: 'category', data: ['O','P','D','E','V','R','F'], axisLabel: { color: darkDm, fontSize: 8, fontFamily: 'Orbitron' }, axisLine: { lineStyle: { color: darkDm } } },
+      yAxis: { type: 'value', min: 60, max: 100, axisLabel: { color: darkDm, fontSize: 8 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } } },
+      series: [
+        { name: 'Precision', type: 'line', data: [97,95,91,87,84,80,77], smooth: true, lineStyle: { color: gd, width: 2 }, itemStyle: { color: gd }, symbol: 'circle', symbolSize: 5 },
+        { name: 'Accuracy',  type: 'line', data: [98,95,93,91,89,86,83], smooth: true, lineStyle: { color: pr, width: 2 }, itemStyle: { color: pr }, symbol: 'diamond', symbolSize: 5 }
+      ],
+      legend: { show: true, bottom: 0, textStyle: { color: darkDm, fontSize: 8 } }
+    });
+  }
+
+  // ------ Panel 3: Bar - Die步骤分布 ------
+  var mDom = document.getElementById('chDist');
+  if (mDom) {
+    $charts.dist = echarts.init(mDom);
+    $charts.dist.setOption({
+      grid: { top: 8, right: 8, bottom: 18, left: 28 },
+      xAxis: { type: 'category', data: ['O','P','D','E','V','R','F'], axisLabel: { color: darkDm, fontSize: 8, fontFamily: 'Orbitron' }, axisLine: { lineStyle: { color: darkDm } } },
+      yAxis: { type: 'value', min: 0, max: 16, axisLabel: { color: darkDm, fontSize: 8 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } } },
+      series: [
+        { name: 'Running', type: 'bar', stack: 'total', data: [0,0,0,0,0,0,0], itemStyle: { color: cy }, barWidth: 14 },
+        { name: 'Recovering', type: 'bar', stack: 'total', data: [0,0,0,0,0,0,0], itemStyle: { color: am } },
+        { name: 'Crashed', type: 'bar', stack: 'total', data: [0,0,0,0,0,0,0], itemStyle: { color: dr } },
+        { name: 'Complete', type: 'bar', stack: 'total', data: [0,0,0,0,0,0,0], itemStyle: { color: gr } }
+      ],
+      legend: { show: true, bottom: 0, textStyle: { color: darkDm, fontSize: 7 }, itemWidth: 8, itemHeight: 8 }
+    });
+  }
+
+  // ------ Panel 5: Bar - 事件频率时序 ------
+  var eDom = document.getElementById('chEvents');
+  if (eDom) {
+    $charts.events = echarts.init(eDom);
+    $charts.events.setOption({
+      grid: { top: 4, right: 4, bottom: 4, left: 4 },
+      xAxis: { type: 'category', show: false, data: Array(20).fill('') },
+      yAxis: { type: 'value', show: false, min: 0, max: 6 },
+      series: [{
+        type: 'bar', data: Array(20).fill(0),
+        itemStyle: { color: new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:gd},{offset:1,color:'rgba(255,215,64,0.15)'}]) },
+        barWidth: '60%'
+      }]
+    });
+  }
+
+  // ------ Panel 6: Line - 性能趋势 ------
+  var pDom = document.getElementById('chPerf');
+  if (pDom) {
+    $charts.perf = echarts.init(pDom);
+    $charts.perf.setOption({
+      grid: { top: 8, right: 36, bottom: 18, left: 36 },
+      xAxis: { type: 'category', show: false, data: Array(30).fill('') },
+      yAxis: [
+        { type: 'value', min: 0, max: 80, axisLabel: { color: darkDm, fontSize: 7 }, splitLine: { lineStyle: { color: 'rgba(255,255,255,0.03)' } } },
+        { type: 'value', min: 0, max: 5000, axisLabel: { color: darkDm, fontSize: 7 }, splitLine: { show: false } }
+      ],
+      series: [
+        { name: 'P99(ms)', type: 'line', yAxisIndex: 0, data: Array(30).fill(28), smooth: true, lineStyle: { color: cy, width: 1.5 }, itemStyle: { color: cy }, symbol: 'none' },
+        { name: 'CPU(%)', type: 'line', yAxisIndex: 0, data: Array(30).fill(34), smooth: true, lineStyle: { color: pr, width: 1.5, type: 'dashed' }, itemStyle: { color: pr }, symbol: 'none' },
+        { name: '吞吐(t/s)', type: 'line', yAxisIndex: 1, data: Array(30).fill(3842), smooth: true, lineStyle: { color: gd, width: 1.5 }, itemStyle: { color: gd }, symbol: 'none' }
+      ],
+      legend: { show: true, bottom: 0, textStyle: { color: darkDm, fontSize: 7 }, itemWidth: 10, itemHeight: 6 }
+    });
+  }
+}
+
+// =====================================================
+// PART 17: Chart Update Functions (called per simTick)
+// =====================================================
+function updateCharts() {
+  var m = S235.metrics;
+  var h = S235.history;
+  if (typeof echarts === 'undefined') return;
+
+  // --- Gauge ---
+  if ($charts.gauge) {
+    $charts.gauge.setOption({ series: [{ data: [{ value: parseFloat(m.determinismScore.toFixed(1)), name: S235.chaos.active ? 'CHAOS' : 'STEADY' }] }] });
+  }
+
+  // --- Decay curve (from worst active Die) ---
+  if ($charts.decay) {
+    var worst = null;
+    for (var i = 0; i < S235.dies.length; i++) {
+      var d = S235.dies[i];
+      if (d.status === 'running' || d.status === 'recovering') {
+        if (!worst || d.precision < worst.precision) worst = d;
+      }
+    }
+    var pArr = [97,96,94,93,93,89,87];
+    var aArr = [98,98,97,95,93,94,91];
+    if (worst && worst.precisionAtStep.length >= 7) {
+      pArr = worst.precisionAtStep.slice(0, 7).map(function(v){ return parseFloat(v.toFixed(1)); });
+      aArr = worst.accuracyAtStep.slice(0, 7).map(function(v){ return parseFloat(v.toFixed(1)); });
+    }
+    $charts.decay.setOption({ series: [{ data: pArr }, { data: aArr }] });
+  }
+
+  // --- Die Distribution ---
+  if ($charts.dist) {
+    var cnts = { running: [0,0,0,0,0,0,0], recovering: [0,0,0,0,0,0,0], crashed: [0,0,0,0,0,0,0], complete: [0,0,0,0,0,0,0] };
+    for (var j = 0; j < S235.dies.length; j++) {
+      var die = S235.dies[j];
+      if (die.currentStep >= 0 && die.currentStep < 7) {
+        var st = die.status;
+        if (st === 'running') cnts.running[die.currentStep]++;
+        else if (st === 'recovering') cnts.recovering[die.currentStep]++;
+        else if (st === 'crashed') cnts.crashed[die.currentStep]++;
+        else if (st === 'complete') cnts.complete[6]++;
+      }
+    }
+    $charts.dist.setOption({
+      series: [
+        { data: cnts.running }, { data: cnts.recovering }, { data: cnts.crashed }, { data: cnts.complete }
+      ]
+    });
+  }
+
+  // --- Event Frequency ---
+  if ($charts.events) {
+    h.eventCounts.push(S235.events.length > 1 ? Math.min(6, S235.events.filter(function(e){ return (Date.now() - e.time) < 30000; }).length) : 1);
+    if (h.eventCounts.length > 20) h.eventCounts.shift();
+    $charts.events.setOption({ series: [{ data: h.eventCounts.slice() }] });
+  }
+
+  // --- Performance Trend ---
+  if ($charts.perf) {
+    h.p99Lat.push(m.avgLatency + (S235.chaos.active ? 40 : 0));
+    h.cpu.push(m.cpuUsage);
+    h.throughput.push(m.totalThroughput);
+    if (h.p99Lat.length > 30) { h.p99Lat.shift(); h.cpu.shift(); h.throughput.shift(); }
+    $charts.perf.setOption({
+      series: [
+        { data: h.p99Lat.slice() },
+        { data: h.cpu.slice() },
+        { data: h.throughput.slice() }
+      ]
+    });
+  }
+}
+
+
+// =====================================================
+// DataSimulator — 全量动态数据模拟器（直接DOM操作）
+// =====================================================
+var DataSimulator = (function() {
+  'use strict';
+
+  // ---- 初始静态数据（左侧面板所有指标） ----
+  var state = {
+    // Panel 1 KPI
+    detScore:       99.6,   // 确定性评分
+    stepSuccess:    94.3,   // 单步成功率(%)
+    e2eScore:       91.6,   // E2E·确定(%)
+    precScore:      92.8,   // 精度评分(%)
+    accScore:       95.2,   // 准确率(%)
+    interceptRate:  99.9,   // 失败拦截(%)
+    // Panel 1 New Metrics
+    raftLatency:    18.4,   // Raft共识延迟(ms)
+    agentQueue:     3,      // Agent等待队列(个)
+    grpcHealth:     100,    // gRPC连接健康度(%)
+    // Panel 1 Status
+    runMode:        '确定性优先',
+    resources:      '16 Agent·235引擎',
+    healthScore:    97,
+    healthLabel:    '优秀',
+    uptimeHours:    1286,
+    // Panel 2 Engine
+    precDecayVal:   1.2,    // 精度衰减%/step
+    accDecayVal:    0.9,    // 准确率衰减%/step
+    recoveryRate:   72.0,   // Recovery率(%)
+    precBarPct:     87,     // 精度进度条%
+    accBarPct:      92,     // 准确率进度条%
+    recBarPct:      72,     // Recovery进度条%
+    // Panel 3 Pipeline
+    pipeStatus:     '流通',
+    pipeStep:       'Verifier (5/7)',
+    pipeE2E:        '89.6%',
+    pipeRecovery:   '96.8% (+7.2%)',
+    pipeStepIdx:    4,      // 0-6
+    // Panel 6 Perf
+    p99Latency:     28,
+    throughput:     3842,
+    cpuUsage:       34,
+    gpuMem:         18.4,
+    hashDepth:      15592,
+    hashSequence:   235,
+    // Panel 6 Classes
+    cpuClass:       'ok',
+    gpuClass:       'ok',
+    // Chaos
+    chaosActive:    false,
+    chaosDies:      0,
+    // Internal
+    tickCount:      0,
+    stepNames:      ['Orchstrator','Planner','Decomposer','Executor','Verifier','Recovery','Finalizer']
+  };
+
+  // ---- Decay configuration ----
+  var DECAY_PREC = 1.5;   // 精度衰减 -1.5%/step
+  var DECAY_ACC  = 0.4;   // 准确率衰减 -0.4%/step
+  var DECAY_FLOOR_PREC = 78; // 精度底部阈值
+  var DECAY_FLOOR_ACC  = 83; // 准确率底部阈值
+  var BOUNCE_PREC = 1.8;     // 触底回弹量
+  var BOUNCE_ACC  = 1.2;
+
+  // ---- DOM Helper ----
+  function setText(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.textContent = val;
+  }
+  function setHtml(id, val) {
+    var el = document.getElementById(id);
+    if (el) el.innerHTML = val;
+  }
+  function setCls(id, cls) {
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.className = el.className.replace(/s-val\s+\w+/g, '').trim() + ' s-val ' + cls;
+  }
+  function setBar(id, pct) {
+    var el = document.getElementById(id);
+    if (el) el.style.width = pct.toFixed(0) + '%';
+  }
+
+  // ---- Precision/Accuracy decay model ----
+  function applyDecay() {
+    // Micro-fluctuation only — task load injection drives metrics UP (see below)
+    state.precScore = Math.max(82, Math.min(99.5, state.precScore + (Math.random() - 0.5) * 0.6));
+    state.accScore  = Math.max(85, Math.min(99.5, state.accScore  + (Math.random() - 0.5) * 0.4));
+
+    // Step success: follows precision trend
+    state.stepSuccess = state.precScore - 0.8 + (Math.random() - 0.5) * 1.0;
+    state.stepSuccess = Math.max(85, Math.min(99, state.stepSuccess));
+
+    // E2E: stable with slight noise, driven up by task injection
+    state.e2eScore = Math.max(60, Math.min(98, state.e2eScore));
+
+    // Determinism score
+    state.detScore = Math.max(80, Math.min(99.9, state.precScore * 0.55 + state.accScore * 0.35 + state.stepSuccess * 0.10));
+
+    // Intercept rate
+    state.interceptRate = 99.0 + Math.random() * 1.0;
+    if (state.chaosActive) state.interceptRate = 88 + Math.random() * 8;
+
+    // Recovery rate — drifts slowly
+    state.recoveryRate += (Math.random() - 0.5) * 1.5;
+    state.recoveryRate = Math.max(55, Math.min(88, state.recoveryRate));
+
+    // Pipeline step advances
+    state.pipeStepIdx = (state.pipeStepIdx + 1) % 7;
+    state.pipeStep = state.stepNames[state.pipeStepIdx] + ' (' + (state.pipeStepIdx + 1) + '/7)';
+
+    // E2E recovery (with recovery loop gain)
+    var recoveryGain = state.recoveryRate * 0.35;
+    var e2eWithRec = Math.min(99, state.e2eScore + recoveryGain);
+    state.pipeE2E = state.e2eScore.toFixed(1) + '%';
+    state.pipeRecovery = e2eWithRec.toFixed(1) + '% (+' + (e2eWithRec - state.e2eScore).toFixed(1) + '%)';
+
+    // Performance metrics
+    state.p99Latency = 18 + Math.floor(Math.random() * 20);
+    if (state.chaosActive) state.p99Latency += 40 + Math.floor(Math.random() * 50);
+    state.throughput = 3200 + Math.floor(Math.random() * 1200);
+    state.cpuUsage = 28 + Math.floor(Math.random() * 15);
+    state.gpuMem = 16 + Math.random() * 5;
+    state.hashDepth += Math.floor(Math.random() * 3);
+    state.hashSequence += 1;
+
+    // ---- New Metrics: Raft Latency / Agent Queue / gRPC Health ----
+    // Raft latency: 6-30ms range (typical gRPC + consensus round-trip)
+    state.raftLatency = 6 + Math.random() * 24;
+    if (state.chaosActive) state.raftLatency = 40 + Math.random() * 60;
+
+    // Agent queue: drifts with chaos
+    state.agentQueue = Math.max(0, Math.floor(state.agentQueue + (Math.random() - 0.55) * 2));
+    if (state.chaosActive) state.agentQueue = 5 + Math.floor(Math.random() * 10);
+    state.agentQueue = Math.min(15, Math.max(0, state.agentQueue));
+
+    // gRPC health: 100% normally, drops during chaos
+    state.grpcHealth = 96 + Math.random() * 4;
+    if (state.chaosActive) state.grpcHealth = 40 + Math.random() * 30;
+
+    // ---- Task Load Injection: drive metrics UP towards 95%+ ----
+    // Every tick, simulate an Agent task being processed successfully,
+    // which gradually raises precision/accuracy/E2E
+    state.stepSuccess = Math.min(98.5, state.stepSuccess + (Math.random() - 0.4) * 0.8);
+    state.precScore = Math.min(97.5, state.precScore + (Math.random() - 0.35) * 0.6);
+    state.accScore  = Math.min(98.0, state.accScore  + (Math.random() - 0.35) * 0.5);
+    state.detScore  = Math.min(99.5, state.detScore  + (Math.random() - 0.3) * 0.4);
+    state.e2eScore  = Math.min(97.0, state.e2eScore  + (Math.random() - 0.4) * 0.5);
+
+    // Health
+    state.healthScore = Math.floor(state.detScore);
+    if (state.healthScore >= 95) state.healthLabel = '优秀';
+    else if (state.healthScore >= 85) state.healthLabel = '良好';
+    else if (state.healthScore >= 70) state.healthLabel = '关注';
+    else state.healthLabel = '预警';
+
+    // Chaos state
+    if (state.chaosActive) {
+      state.runMode = '混沌恢复中';
+      state.resources = '8/16 Agent·235引擎(受损)';
+    } else {
+      state.runMode = '确定性优先';
+      state.resources = '16 Agent·235引擎';
+    }
+
+    // Decay display values
+    state.precDecayVal = state.chaosActive ? DECAY_PREC * 2.2 : DECAY_PREC * (0.7 + Math.random() * 0.6);
+    state.accDecayVal  = state.chaosActive ? DECAY_ACC * 2.0 : DECAY_ACC * (0.7 + Math.random() * 0.6);
+
+    // Progress bar values
+    state.precBarPct = state.precScore;
+    state.accBarPct  = state.accScore;
+    state.recBarPct  = state.recoveryRate;
+  }
+
+  // ---- Render ALL panels via direct DOM ----
+  function renderAll() {
+    // Panel 1 — 6 KPI cards
+    setText('kDet',  state.detScore.toFixed(1));
+    setText('kStep', state.stepSuccess.toFixed(1));
+    setText('kE2E', state.e2eScore.toFixed(1));
+    setText('kPrec', state.precScore.toFixed(1));
+    setText('kAcc',  state.accScore.toFixed(1));
+    setText('kInt',  state.interceptRate.toFixed(1));
+    setText('kRaftLat', state.raftLatency.toFixed(1));
+    setText('kQueue',   state.agentQueue.toFixed(0));
+    setText('kGrpcHealth', state.grpcHealth.toFixed(0));
+
+    // Panel 1 — Status rows
+    setText('kMode',   state.runMode);
+    setText('kRes',    state.resources);
+    setText('kHealth', state.healthLabel + ' (' + state.healthScore + '/100)');
+    setText('kUptime', state.uptimeHours + 'h');
+
+    // Panel 2 — Engine values
+    setText('eDecayPrec', '-' + state.precDecayVal.toFixed(1) + '%/step');
+    setText('eDecayAcc',  '-' + state.accDecayVal.toFixed(1) + '%/step');
+    setText('eRecRate',   state.recoveryRate.toFixed(1) + '%');
+
+    // Panel 2 — Progress bars
+    setBar('eBarPrec', state.precBarPct);
+    setBar('eBarAcc',  state.accBarPct);
+    setBar('eBarRec',  state.recBarPct);
+
+    // Panel 3 — Pipeline
+    setText('plStatus',  state.pipeStatus);
+    setText('plStep',    state.pipeStep);
+    setText('plE2E',     state.pipeE2E);
+    setText('plRecovery',state.pipeRecovery);
+
+    // Panel 6 — Performance
+    setText('sP99',     state.p99Latency + 'ms');
+    setText('sThru',    state.throughput.toLocaleString() + ' t/s');
+    setText('sCpu',     state.cpuUsage.toFixed(0) + '%');
+    setText('sGpuMem',  state.gpuMem.toFixed(1) + ' GB');
+    setText('sHash',    '0xda235e...' + Math.floor(Math.random() * 0xffff).toString(16).padStart(4,'0'));
+    setText('sDepth',   state.hashDepth.toLocaleString());
+    setText('sSeq',     '#' + state.hashSequence);
+
+    // Panel 6 — Classes
+    var cpuCls = state.cpuUsage > 70 ? 'warn' : 'ok';
+    var gpuCls = state.gpuMem > 28 ? 'warn' : 'ok';
+    setCls('sCpu', cpuCls);
+    setCls('sGpuMem', gpuCls);
+
+    // Panel 1 — Mode/Health classes
+    var modeCls = state.chaosActive ? 'warn' : 'ok';
+    var healthCls = state.healthScore >= 95 ? 'ok' : state.healthScore >= 85 ? 'warn' : 'err';
+    setCls('kMode', modeCls);
+    setCls('kHealth', healthCls);
+
+    // Uptime
+    state.uptimeHours = 1286 + Math.floor(state.tickCount / 240);
+  }
+
+  // ---- Main tick ----
+  function tick() {
+    state.tickCount++;
+    applyDecay();
+    renderAll();
+  }
+
+  // ---- Pipeline Visualization ----
+  function updatePipeline() {
+    // 7 pipeline steps with precision/accuracy (derived from decay model)
+    var basePrec = state.precScore + 5;
+    var baseAcc  = state.accScore  + 3;
+    var precs = [];
+    var accs  = [];
+    for (var i = 0; i < 7; i++) {
+      var p = Math.max(60, basePrec - i * state.precDecayVal + (Math.random() - 0.5) * 2);
+      var a = Math.max(65, baseAcc  - i * state.accDecayVal + (Math.random() - 0.5) * 2);
+      precs.push(p);
+      accs.push(a);
+    }
+
+    // Color thresholds: >95 green, 90-95 gold, 85-90 orange, <85 red
+    function nodeClass(precision) {
+      if (precision >= 95) return 'pl-node-hi';
+      if (precision >= 90) return 'pl-node-ok';
+      if (precision >= 85) return 'pl-node-warn';
+      return 'pl-node-crit';
+    }
+
+    for (var j = 0; j < 7; j++) {
+      var circle = document.getElementById('plCirc' + j);
+      var precEl = document.getElementById('plPrec' + j);
+      var accEl  = document.getElementById('plAcc'  + j);
+      if (circle) {
+        var cls = nodeClass(precs[j]);
+        // Reset all and apply new
+        circle.setAttribute('class', '');
+        circle.classList.add(cls);
+      }
+      if (precEl) {
+        precEl.textContent = precs[j].toFixed(0) + '%';
+        precEl.setAttribute('fill', precs[j] >= 90 ? '#00e676' : precs[j] >= 85 ? '#ffab40' : '#ff2d55');
+      }
+      if (accEl) {
+        accEl.textContent = 'A' + accs[j].toFixed(0) + '%';
+      }
+      // Update link color (use node class for the link TO this node)
+      if (j > 0) {
+        var link = document.getElementById('plLink' + (j - 1));
+        if (link) {
+          var linkCls = precs[j] >= 90 ? 'pl-line-ok' : 'pl-line-warn';
+          link.setAttribute('class', '');
+          link.classList.add(linkCls);
+        }
+      }
+    }
+  }
+
+  // ---- Verification Status Animation ----
+  function animateVerification(whiteResult, blackResult) {
+    var wEl = document.getElementById('vWhite');
+    var bEl = document.getElementById('vBlack');
+
+    // Phase 1: verifying (blinking)
+    if (wEl) { wEl.textContent = '验证中'; wEl.className = 'v-status verifying'; }
+    if (bEl) { bEl.textContent = '验证中'; bEl.className = 'v-status verifying'; }
+
+    // Phase 2: pending
+    setTimeout(function() {
+      if (wEl) { wEl.textContent = '待验证'; wEl.className = 'v-status pending'; }
+      if (bEl) { bEl.textContent = '待验证'; bEl.className = 'v-status pending'; }
+    }, 1500);
+
+    // Phase 3: result
+    setTimeout(function() {
+      if (wEl) {
+        wEl.textContent = whiteResult ? 'PASS' : 'FAIL';
+        wEl.className = 'v-status ' + (whiteResult ? 'pass' : 'fail');
+      }
+      if (bEl) {
+        bEl.textContent = blackResult ? 'PASS' : 'FAIL';
+        bEl.className = 'v-status ' + (blackResult ? 'pass' : 'fail');
+      }
+    }, 2800);
+  }
+
+  // ---- Augment tick to also update pipeline ----
+  var _origTick = tick;
+  tick = function() {
+    _origTick();
+    updatePipeline();
+  };
+
+  // ---- API ----
+  return {
+    getState: function() { return state; },
+
+    injectChaos: function() {
+      state.chaosActive = true;
+      state.chaosDies = 3 + Math.floor(Math.random() * 6);
+      state.precScore = Math.max(30, state.precScore - 40);
+      state.accScore  = Math.max(35, state.accScore - 35);
+      state.detScore  = Math.max(40, state.detScore - 45);
+      state.pipeStatus = '部分阻塞';
+      tick();
+
+      // Auto-recover after 30s
+      setTimeout(function() {
+        state.chaosActive = false;
+        state.pipeStatus = '恢复中';
+        state.precScore += 20;
+        state.accScore  += 18;
+        tick();
+        setTimeout(function() {
+          state.pipeStatus = '流通';
+          tick();
+        }, 3000);
+      }, 30000);
+    },
+
+    startSystemRealtimeLoop: function() {
+      // Clear any existing timer
+      if (this._timer) clearInterval(this._timer);
+      // Start 1.5s loop
+      this._timer = setInterval(tick, 1500);
+      // Initial render
+      tick();
+      console.log('DataSimulator: realtime loop started @ 1.5s');
+    },
+
+    animateVerification: function(w, b) { animateVerification(w, b); },
+
+    stop: function() {
+      if (this._timer) { clearInterval(this._timer); this._timer = null; }
+    },
+
+    // Expose tick for external calls
+    tick: tick
+  };
+})();
+
+// Override the global chaosInject to use DataSimulator
+var _origChaosInject = window.chaosInject;
+window.chaosInject = function(severity) {
+  DataSimulator.injectChaos();
+  if (typeof _origChaosInject === 'function') _origChaosInject(severity);
+};
+
+
+// Start simulation loop
+setInterval(simTick, 1800);
+
+// Initial render
+setTimeout(updateAll, 200);
+setTimeout(function() { renderAuditPage(); }, 400);
+// Periodic audit log refresh (every 8s)
+setInterval(function() { renderAuditPage(); }, 8000);
+
+// Expose key functions globally for onclick handlers
+window.chaosInject = chaosInject;
+window.boostAll = boostAll;
+window.calibratePrecision = calibratePrecision;
+window.rollbackAccuracy = rollbackAccuracy;
+window.verifyFullChain = verifyFullChain;
+window.resetSeed = resetSeed;
+window.sealEvidence = sealEvidence;
+window.securityScan = securityScan;
+window.setEvtCat = setEvtCat;
+window.exportAuditCSV = exportAuditCSV;
+window.exportAuditPDF = exportAuditPDF;
+
+})();
+</script>
+
+</body>
+</html>

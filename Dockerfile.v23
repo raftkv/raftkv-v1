@@ -1,0 +1,15 @@
+FROM golang:1.24-alpine AS builder
+ENV GOPROXY=https://goproxy.cn,direct
+WORKDIR /build
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.Version=2.3.0" -o /gateway .
+
+FROM alpine:3.21
+RUN apk add --no-cache ca-certificates tzdata curl
+ENV TZ=Asia/Shanghai
+WORKDIR /app
+COPY --from=builder /gateway .
+EXPOSE 9700 9000
+ENTRYPOINT ["./gateway"]

@@ -1,0 +1,9 @@
+LICENSE eol=lf
+CHANGELOG.md eol=lf
+CONTRIBUTING.md eol=lf
+*.go eol=lf
+*.md eol=lf
+*.yml eol=lf
+*.yaml eol=lf
+*.sh eol=lf
+*.toml eol=lf

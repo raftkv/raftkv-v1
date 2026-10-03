@@ -1,0 +1,61 @@
+services:
+  node-1:
+    environment:
+      - RATE_LIMIT_ENABLED=true
+      - STRUCTURED_LOG=true
+      - IN_FLIGHT_CAP=256
+      - TLS_CERT_FILE=/app/certs/node-1-cert.pem
+      - TLS_KEY_FILE=/app/certs/node-1-key.pem
+      - TLS_CA_FILE=/app/certs/ca-cert.pem
+      - TLS_CLIENT_CERT_FILE=/app/certs/node-1-cert.pem
+      - TLS_CLIENT_KEY_FILE=/app/certs/node-1-key.pem
+    volumes:
+      - ./certs:/app/certs:ro
+  node-2:
+    environment:
+      - RATE_LIMIT_ENABLED=true
+      - STRUCTURED_LOG=true
+      - IN_FLIGHT_CAP=256
+      - TLS_CERT_FILE=/app/certs/node-2-cert.pem
+      - TLS_KEY_FILE=/app/certs/node-2-key.pem
+      - TLS_CA_FILE=/app/certs/ca-cert.pem
+      - TLS_CLIENT_CERT_FILE=/app/certs/node-2-cert.pem
+      - TLS_CLIENT_KEY_FILE=/app/certs/node-2-key.pem
+    volumes:
+      - ./certs:/app/certs:ro
+  node-3:
+    environment:
+      - RATE_LIMIT_ENABLED=true
+      - STRUCTURED_LOG=true
+      - IN_FLIGHT_CAP=256
+      - TLS_CERT_FILE=/app/certs/node-3-cert.pem
+      - TLS_KEY_FILE=/app/certs/node-3-key.pem
+      - TLS_CA_FILE=/app/certs/ca-cert.pem
+      - TLS_CLIENT_CERT_FILE=/app/certs/node-3-cert.pem
+      - TLS_CLIENT_KEY_FILE=/app/certs/node-3-key.pem
+    volumes:
+      - ./certs:/app/certs:ro
+  node-4:
+    environment:
+      - RATE_LIMIT_ENABLED=true
+      - STRUCTURED_LOG=true
+      - IN_FLIGHT_CAP=256
+      - TLS_CERT_FILE=/app/certs/node-4-cert.pem
+      - TLS_KEY_FILE=/app/certs/node-4-key.pem
+      - TLS_CA_FILE=/app/certs/ca-cert.pem
+      - TLS_CLIENT_CERT_FILE=/app/certs/node-4-cert.pem
+      - TLS_CLIENT_KEY_FILE=/app/certs/node-4-key.pem
+    volumes:
+      - ./certs:/app/certs:ro
+  node-5:
+    environment:
+      - RATE_LIMIT_ENABLED=true
+      - STRUCTURED_LOG=true
+      - IN_FLIGHT_CAP=256
+      - TLS_CERT_FILE=/app/certs/node-5-cert.pem
+      - TLS_KEY_FILE=/app/certs/node-5-key.pem
+      - TLS_CA_FILE=/app/certs/ca-cert.pem
+      - TLS_CLIENT_CERT_FILE=/app/certs/node-5-cert.pem
+      - TLS_CLIENT_KEY_FILE=/app/certs/node-5-key.pem
+    volumes:
+      - ./certs:/app/certs:ro

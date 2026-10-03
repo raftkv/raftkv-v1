@@ -1,0 +1,118 @@
+# === R0-G1 .gitignore ===
+# 纳入: 全部源码+构建必需文件
+# 排除: 二进制/WAL/大文件/密钥/工具目录
+
+# --- WAL文件 ---
+*.wal
+pkg/integration-test/integration_test.wal
+
+# --- 编译产物（根目录）---
+*.exe
+gateway_cluster
+gateway-arm64
+gateway_arm64_final
+gateway_v22s_arm64_fixed
+v24_gateway_amd64
+v24_writetest_amd64
+demo_gateway
+diag_tool_arm64
+health_checker_arm64
+write_tester_arm64
+
+# --- 编译产物（cmd/子目录）---
+cmd/chaos_sink_test/chaos_sink_test.exe
+cmd/local_sink_test/local_sink_test.exe
+cmd/load_tester/load_tester.exe
+cmd/load_tester/load_tester_arm64
+cmd/demo_gateway/demo_gateway
+
+# --- 编译产物（pkg/子目录）---
+pkg/raft-module/*.exe
+pkg/wal-sm4-module/*.exe
+pkg/supervisor-module/*.exe
+pkg/observability-module/*.exe
+pkg/pipeline-module/*.exe
+pkg/observability-module/cmd/observability-test/observability-test
+
+# --- 压缩包/归档 ---
+*.tar
+*.zip
+RaftKV-三节点部署包.zip
+
+# --- 密钥/敏感 ---
+license.key
+*.key
+
+# --- 备份文件 ---
+*.bak
+*.bak_*
+
+# --- 日志/测试输出 ---
+*.log
+dist_load_out.txt
+dist_loadtest_output.txt
+loadtest_15min.txt
+diag_report.pdf
+
+# --- IDE/工具目录 ---
+.arts/
+.codeartsdoer/
+.codegraph/
+.devkit/
+
+# --- 无关内容 ---
+鲲鹏物理机最终撤离证据/
+main,go,
+tests/evidence/
+
+# --- batch16 证书（含私钥，不入git）---
+tests/deploy/certs/
+
+# --- D2-batch1 部署配置（修正B: 不入git）---
+tests/deploy/deploy.env
+tests/deploy/.sm4_key
+# --- batch21 编译产物 ---
+cmd/chaos_injector/chaos_injector_arm64
+cmd/chaos_injector/chaos_injector
+tools/loadgen/loadgen_linux
+tools/loadgen/loadgen.exe
+
+# --- batch21 证据目录（显式排除，RL-08）---
+tests/evidence/d3-batch21/
+# --- 内部文档（不进公网）---
+LEDGER.md
+QUEUE.md
+STATE_SNAPSHOT.md
+双模式授权配置说明.md
+_state_protection_research/
+docs/governance/AUDIT.md
+docs/governance/MISBEHAVIOR.md
+docs/chain3_scan_report.md
+docs/chain4_backup_verify.md
+docs/chain4_closure_report.md
+docs/chain4_walkthrough_evidence.md
+docs/chain3_redline_gate.md
+docs/chain1_morning_report.md
+docs/chain2_campaign4_morning_report.md
+docs/campaign3_closure_review.md
+docs/release_artifacts.md
+# --- 编译产物（pkg/ ARM64 binaries）---
+pkg/observability-module/observability-test-linux-arm64
+pkg/pipeline-module/pipeline-test-linux-arm64
+pkg/raft-module/raft-test-linux-arm64
+pkg/supervisor-module/supervisor-test-linux-arm64
+pkg/wal-sm4-module/wal-sm4-test-linux-arm64
+
+# --- 编译产物（根目录 binaries）---
+gateway_batch12
+gateway_batch12_v2
+
+# --- 内部测试产物 ---
+tests/auto/
+tests/contracts/__pycache__/
+
+# --- 内部artifact ---
+.merkle-snapshot.json
+sandbox_output*.txt
+pkg/observability-module/sandbox_output*.txt
+*.bundle

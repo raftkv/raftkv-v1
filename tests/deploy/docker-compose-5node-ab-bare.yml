@@ -1,0 +1,21 @@
+services:
+  node-1:
+    environment:
+      - RATE_LIMIT_ENABLED=false
+      - STRUCTURED_LOG=false
+  node-2:
+    environment:
+      - RATE_LIMIT_ENABLED=false
+      - STRUCTURED_LOG=false
+  node-3:
+    environment:
+      - RATE_LIMIT_ENABLED=false
+      - STRUCTURED_LOG=false
+  node-4:
+    environment:
+      - RATE_LIMIT_ENABLED=false
+      - STRUCTURED_LOG=false
+  node-5:
+    environment:
+      - RATE_LIMIT_ENABLED=false
+      - STRUCTURED_LOG=false

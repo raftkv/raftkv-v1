@@ -1,0 +1,249 @@
+# =========================================================================
+# RaftKV 跨機房容災模擬 — 9節點3子網Raft集群
+#
+# 拓撲:
+#   DC1 (10.1.0.0/24): dc1-n1, dc1-n2, dc1-n3
+#   DC2 (10.2.0.0/24): dc2-n1, dc2-n2, dc2-n3
+#   DC3 (10.3.0.0/24): dc3-n1, dc3-n2, dc3-n3
+#
+# 容災驗證: 停掉任一DC的3節點，剩餘6節點 > majority(5) → 集群可用
+#
+# 端口分配:
+#   DC1: gRPC 9700-9702, HTTP 9201-9203
+#   DC2: gRPC 9710-9712, HTTP 9211-9213
+#   DC3: gRPC 9720-9722, HTTP 9221-9223
+#
+# 啟動: docker-compose -f docker-compose-3dc.yml up -d
+# 停DC1: docker-compose -f docker-compose-3dc.yml stop dc1-n1 dc1-n2 dc1-n3
+# =========================================================================
+
+services:
+
+  # ==================== DC1 — 機房1 ====================
+  dc1-n1:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc1-n1
+    restart: always
+    environment:
+      NODE_ID: dc1-n1
+      GRPC_PORT: "9700"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9700:9700"
+      - "9201:9000"
+    networks:
+      dc1-net:
+        ipv4_address: 10.1.0.11
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  dc1-n2:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc1-n2
+    restart: always
+    environment:
+      NODE_ID: dc1-n2
+      GRPC_PORT: "9701"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9701:9701"
+      - "9202:9000"
+    networks:
+      dc1-net:
+        ipv4_address: 10.1.0.12
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  dc1-n3:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc1-n3
+    restart: always
+    environment:
+      NODE_ID: dc1-n3
+      GRPC_PORT: "9702"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9702:9702"
+      - "9203:9000"
+    networks:
+      dc1-net:
+        ipv4_address: 10.1.0.13
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ==================== DC2 — 機房2 ====================
+  dc2-n1:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc2-n1
+    restart: always
+    environment:
+      NODE_ID: dc2-n1
+      GRPC_PORT: "9710"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9710:9710"
+      - "9211:9000"
+    networks:
+      dc2-net:
+        ipv4_address: 10.2.0.11
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  dc2-n2:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc2-n2
+    restart: always
+    environment:
+      NODE_ID: dc2-n2
+      GRPC_PORT: "9711"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9711:9711"
+      - "9212:9000"
+    networks:
+      dc2-net:
+        ipv4_address: 10.2.0.12
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  dc2-n3:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc2-n3
+    restart: always
+    environment:
+      NODE_ID: dc2-n3
+      GRPC_PORT: "9712"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9712:9712"
+      - "9213:9000"
+    networks:
+      dc2-net:
+        ipv4_address: 10.2.0.13
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ==================== DC3 — 機房3 ====================
+  dc3-n1:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc3-n1
+    restart: always
+    environment:
+      NODE_ID: dc3-n1
+      GRPC_PORT: "9720"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9720:9720"
+      - "9221:9000"
+    networks:
+      dc3-net:
+        ipv4_address: 10.3.0.11
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  dc3-n2:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc3-n2
+    restart: always
+    environment:
+      NODE_ID: dc3-n2
+      GRPC_PORT: "9721"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n3=raftkv-dc3-n3:9722
+    ports:
+      - "9721:9721"
+      - "9222:9000"
+    networks:
+      dc3-net:
+        ipv4_address: 10.3.0.12
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  dc3-n3:
+    image: raftkv-gateway:latest
+    container_name: raftkv-dc3-n3
+    restart: always
+    environment:
+      NODE_ID: dc3-n3
+      GRPC_PORT: "9722"
+      HTTP_PORT: "9000"
+      PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721
+    ports:
+      - "9722:9722"
+      - "9223:9000"
+    networks:
+      dc3-net:
+        ipv4_address: 10.3.0.13
+      inter-dc:
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+networks:
+  dc1-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.1.0.0/24
+  dc2-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.2.0.0/24
+  dc3-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 10.3.0.0/24
+  inter-dc:
+    driver: bridge

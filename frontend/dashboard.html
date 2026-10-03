@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>连锁门店业务数据大屏</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', sans-serif;
+        }
+        body {
+            background-color: #000510;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr auto;
+            gap: 16px;
+            padding: 16px;
+            height: 100vh;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background: linear-gradient(90deg, #001122, #002244);
+            border: 1px solid #0088ff;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 0 20px #0088ff33;
+        }
+        .header h1 {
+            font-size: 28px;
+            background: linear-gradient(90deg, #00ff88, #0088ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .controls {
+            display: flex;
+            gap: 20px;
+        }
+        select, input, button {
+            padding: 10px 16px;
+            background: #001133;
+            color: #ffffff;
+            border: 1px solid #0088ff;
+            border-radius: 8px;
+            font-size: 14px;
+            outline: none;
+        }
+        button {
+            background: linear-gradient(90deg, #0088ff, #00ff88);
+            color: #000;
+            font-weight: bold;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: scale(1.05);
+        }
+        .card {
+            background: #001122;
+            border: 1px solid #0088ff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 0 15px #0088ff22;
+            display: flex;
+            flex-direction: column;
+        }
+        .card-title {
+            font-size: 18px;
+            margin-bottom: 15px;
+            color: #00ff88;
+            border-bottom: 1px solid #0088ff;
+            padding-bottom: 8px;
+        }
+        .chart-container {
+            flex: 1;
+            min-height: 300px;
+            width: 100%;
+        }
+        .left-top { grid-column: 1; grid-row: 2; }
+        .left-bottom { grid-column: 1; grid-row: 3; }
+        .right-top { grid-column: 2; grid-row: 2; }
+        .right-bottom { grid-column: 2; grid-row: 3; }
+        .footer {
+            grid-column: 1 / -1;
+            grid-row: 4;
+            background: #001122;
+            border: 1px solid #ff0088;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 0 15px #ff008822;
+        }
+        .table-container {
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #0088ff;
+        }
+        th {
+            background: #002244;
+            color: #00ff88;
+        }
+        tr:hover {
+            background: #002244;
+        }
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        .status-good { background-color: #00ff88; }
+        .status-warn { background-color: #ffaa00; }
+        .status-bad { background-color: #ff0088; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 连锁门店业务数据大屏</h1>
+            <div class="controls">
+                <select id="storeSelect">
+                    <option value="store_001">北京朝阳店</option>
+                    <option value="store_002">上海浦东店</option>
+                    <option value="store_003">广州天河店</option>
+                </select>
+                <input type="date" id="dateFrom" value="2026-07-01">
+                <input type="date" id="dateTo" value="2026-07-07">
+                <button id="refreshBtn">🔄 刷新数据</button>
+                <button id="autoRefreshToggle">⏸️ 暂停自动刷新</button>
+            </div>
+        </div>
+
+        <div class="card left-top">
+            <div class="card-title">📈 销售仪表板</div>
+            <div class="chart-container" id="salesChart"></div>
+        </div>
+
+        <div class="card left-bottom">
+            <div class="card-title">📦 库存监控</div>
+            <div class="chart-container" id="inventoryChart"></div>
+            <div id="lowStockList" style="margin-top: 20px; font-size: 14px;"></div>
+        </div>
+
+        <div class="card right-top">
+            <div class="card-title">👥 员工绩效</div>
+            <div class="chart-container" id="staffChart"></div>
+        </div>
+
+        <div class="card right-bottom">
+            <div class="card-title">👤 顾客分析</div>
+            <div class="chart-container" id="customerChart"></div>
+        </div>
+
+        <div class="footer">
+            <div class="card-title">💳 实时交易流水</div>
+            <div class="table-container">
+                <table id="transactionTable">
+                    <thead>
+                        <tr>
+                            <th>时间</th>
+                            <th>订单号</th>
+                            <th>金额</th>
+                            <th>支付方式</th>
+                            <th>状态</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/echarts.min.js"></script>
+    <script>
+        var neonColors = ['#00ff88', '#0088ff', '#ff0088', '#ffaa00', '#aa00ff'];
+
+        var mockData = {
+            sales: {
+                date: '2026-07-07',
+                stores: [
+                    { id: 'store_001', name: '北京朝阳店', sales: 125000, growth: 12.5, categories: [{ name: '服装', value: 45000 }, { name: '食品', value: 35000 }, { name: '家电', value: 30000 }, { name: '日用品', value: 15000 }] },
+                    { id: 'store_002', name: '上海浦东店', sales: 98000, growth: 8.2, categories: [{ name: '服装', value: 35000 }, { name: '食品', value: 28000 }, { name: '家电', value: 22000 }, { name: '日用品', value: 13000 }] },
+                    { id: 'store_003', name: '广州天河店', sales: 87000, growth: 5.7, categories: [{ name: '服装', value: 32000 }, { name: '食品', value: 25000 }, { name: '家电', value: 20000 }, { name: '日用品', value: 10000 }] },
+                    { id: 'store_004', name: '深圳福田店', sales: 76000, growth: 3.9, categories: [{ name: '服装', value: 28000 }, { name: '食品', value: 22000 }, { name: '家电', value: 18000 }, { name: '日用品', value: 8000 }] },
+                    { id: 'store_005', name: '成都锦江店', sales: 65000, growth: 1.5, categories: [{ name: '服装', value: 25000 }, { name: '食品', value: 20000 }, { name: '家电', value: 15000 }, { name: '日用品', value: 5000 }] }
+                ],
+                trendData: [120, 135, 118, 145, 125, 140, 130],
+                currentStoreId: 'store_001'
+            },
+            inventory: {
+                store_id: 'store_001',
+                inventory_level: 78,
+                low_stock_items: [
+                    { sku: 'SKU1001', name: '矿泉水', current: 15, threshold: 50 },
+                    { sku: 'SKU1002', name: '方便面', current: 22, threshold: 100 },
+                    { sku: 'SKU1003', name: '纸巾', current: 8, threshold: 30 }
+                ]
+            },
+            staff: {
+                store_id: 'store_001',
+                staff_list: [
+                    { id: 'emp_001', name: '张三', sales: 85000, attendance: 95 },
+                    { id: 'emp_002', name: '李四', sales: 72000, attendance: 98 },
+                    { id: 'emp_003', name: '王五', sales: 68000, attendance: 92 },
+                    { id: 'emp_004', name: '赵六', sales: 55000, attendance: 88 }
+                ]
+            },
+            customer: {
+                store_id: 'store_001',
+                age_groups: [
+                    { range: '18-25', count: 120, percentage: 30 },
+                    { range: '26-35', count: 180, percentage: 45 },
+                    { range: '36-45', count: 60, percentage: 15 },
+                    { range: '46+', count: 40, percentage: 10 }
+                ],
+                visit_frequency: [
+                    { week: '第1周', visits: 350 },
+                    { week: '第2周', visits: 420 },
+                    { week: '第3周', visits: 380 },
+                    { week: '第4周', visits: 410 }
+                ]
+            },
+            transactions: [
+                { time: '10:23:45', orderId: 'ORD202607071023', amount: 256.80, payment: '支付宝', status: '成功' },
+                { time: '10:25:12', orderId: 'ORD202607071025', amount: 128.50, payment: '微信', status: '成功' },
+                { time: '10:26:33', orderId: 'ORD202607071026', amount: 89.99, payment: '现金', status: '成功' },
+                { time: '10:28:01', orderId: 'ORD202607071028', amount: 520.00, payment: '信用卡', status: '成功' },
+                { time: '10:30:15', orderId: 'ORD202607071030', amount: 75.30, payment: '支付宝', status: '成功' }
+            ]
+        };
+
+        var salesChart, inventoryChart, staffChart, customerChart;
+        var autoRefreshInterval = 3000;
+        var autoRefreshEnabled = true;
+        var refreshTimer = null;
+
+        function generateRandomFluctuation() {
+            mockData.sales.stores.forEach(function(store) {
+                store.sales = Math.round(store.sales * (1 + Math.random() * 0.1 - 0.05));
+                store.growth = parseFloat((store.growth + (Math.random() * 2 - 1)).toFixed(1));
+                store.categories.forEach(function(cat) {
+                    cat.value = Math.round(cat.value * (1 + Math.random() * 0.08 - 0.04));
+                });
+            });
+            mockData.sales.trendData = mockData.sales.trendData.map(function(v) {
+                return Math.round(v * (1 + Math.random() * 0.15 - 0.075));
+            });
+            mockData.inventory.inventory_level = Math.max(0, Math.min(100,
+                Math.round(mockData.inventory.inventory_level * (1 + Math.random() * 0.06 - 0.03))));
+            mockData.inventory.low_stock_items.forEach(function(item) {
+                item.current = Math.max(1, Math.round(item.current * (1 + Math.random() * 0.2 - 0.1)));
+            });
+            mockData.staff.staff_list.forEach(function(s) {
+                s.sales = Math.round(s.sales * (1 + Math.random() * 0.08 - 0.04));
+                s.attendance = Math.max(80, Math.min(100, Math.round(s.attendance * (1 + Math.random() * 0.04 - 0.02))));
+            });
+            mockData.customer.age_groups.forEach(function(g) {
+                g.count = Math.round(g.count * (1 + Math.random() * 0.1 - 0.05));
+            });
+            mockData.customer.visit_frequency.forEach(function(v) {
+                v.visits = Math.round(v.visits * (1 + Math.random() * 0.12 - 0.06));
+            });
+            var now = new Date();
+            var hh = String(now.getHours()).padStart(2, '0');
+            var mm = String(now.getMinutes()).padStart(2, '0');
+            var ss = String(now.getSeconds()).padStart(2, '0');
+            mockData.transactions.unshift({
+                time: hh + ':' + mm + ':' + ss,
+                orderId: 'ORD' + now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + hh + mm + ss,
+                amount: parseFloat((Math.random() * 500 + 50).toFixed(2)),
+                payment: ['支付宝','微信','现金','信用卡'][Math.floor(Math.random()*4)],
+                status: '成功'
+            });
+            if (mockData.transactions.length > 10) mockData.transactions.pop();
+        }
+
+        function renderSalesChart() {
+            var storeId = document.getElementById('storeSelect').value;
+            var store = mockData.sales.stores.find(function(s){ return s.id === storeId; }) || mockData.sales.stores[0];
+            var storeRanking = mockData.sales.stores.slice().sort(function(a,b){ return b.sales - a.sales; });
+
+            var option = {
+                backgroundColor: 'transparent',
+                color: neonColors,
+                tooltip: { trigger: 'axis' },
+                legend: { textStyle: { color: '#fff' } },
+                grid: [
+                    { left: '8%', right: '55%', top: '10%', bottom: '55%' },
+                    { left: '58%', right: '5%', top: '10%', bottom: '55%' },
+                    { left: '8%', right: '55%', top: '62%', bottom: '5%' }
+                ],
+                xAxis: [
+                    { type: 'category', gridIndex: 0, data: ['周一','周二','周三','周四','周五','周六','周日'], axisLine: { lineStyle: { color: '#0088ff' } }, axisLabel: { color: '#fff' } },
+                    { type: 'category', gridIndex: 1, data: storeRanking.map(function(s){ return s.name; }), axisLine: { lineStyle: { color: '#0088ff' } }, axisLabel: { color: '#fff', rotate: 30, fontSize: 10 } }
+                ],
+                yAxis: [
+                    { type: 'value', gridIndex: 0, axisLine: { lineStyle: { color: '#0088ff' } }, axisLabel: { color: '#fff' }, splitLine: { lineStyle: { color: '#003366' } } },
+                    { type: 'value', gridIndex: 1, axisLine: { lineStyle: { color: '#0088ff' } }, axisLabel: { color: '#fff' }, splitLine: { lineStyle: { color: '#003366' } } }
+                ],
+                series: [
+                    { name: '销售额趋势', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: mockData.sales.trendData, smooth: true, lineStyle: { width: 4, color: '#00ff88' }, itemStyle: { color: '#00ff88' } },
+                    { name: '门店排名', type: 'bar', xAxisIndex: 1, yAxisIndex: 1, data: storeRanking.map(function(s){ return s.sales; }), itemStyle: { color: '#0088ff' } },
+                    { name: '品类占比', type: 'pie', radius: ['20%','45%'], center: ['25%','82%'], label: { color: '#fff', fontSize: 10 }, data: store.categories.map(function(c){ return { name: c.name, value: c.value }; }) }
+                ]
+            };
+            salesChart.setOption(option, true);
+        }
+
+        function renderInventoryChart() {
+            var level = mockData.inventory.inventory_level;
+            var option = {
+                backgroundColor: 'transparent',
+                series: [{
+                    type: 'gauge',
+                    center: ['50%', '55%'],
+                    radius: '85%',
+                    min: 0,
+                    max: 100,
+                    splitNumber: 10,
+                    axisLine: { lineStyle: { width: 20, color: [[0.3,'#ff0088'],[0.7,'#ffaa00'],[1,'#00ff88']] } },
+                    pointer: { width: 8, length: '80%' },
+                    detail: { formatter: '库存水位: {value}%', color: '#fff', fontSize: 18, offsetCenter: [0,'30%'] },
+                    data: [{ value: level, name: '库存' }],
+                    title: { show: true, color: '#aaa', offsetCenter: [0,'50%'] }
+                }]
+            };
+            inventoryChart.setOption(option, true);
+
+            var listEl = document.getElementById('lowStockList');
+            listEl.innerHTML = '<div style="color:#ffaa00;margin-bottom:8px;">⚠️ 低库存预警:</div>';
+            mockData.inventory.low_stock_items.forEach(function(item) {
+                var div = document.createElement('div');
+                div.style.marginBottom = '6px';
+                div.style.padding = '6px';
+                div.style.background = '#002244';
+                div.style.borderRadius = '6px';
+                div.style.display = 'flex';
+                div.style.justifyContent = 'space-between';
+                div.innerHTML = '<span>' + item.name + ' (' + item.sku + ')</span><span>当前: ' + item.current + ' / 阈值: ' + item.threshold + '</span>';
+                listEl.appendChild(div);
+            });
+        }
+
+        function renderStaffChart() {
+            var staffList = mockData.staff.staff_list;
+            var names = staffList.map(function(s){ return s.name; });
+            var sales = staffList.map(function(s){ return s.sales; });
+            var days = ['周一','周二','周三','周四','周五','周六','周日'];
+            var attendanceData = [];
+            for (var i = 0; i < names.length; i++) {
+                for (var j = 0; j < days.length; j++) {
+                    attendanceData.push([j, i, Math.floor(Math.random()*30)+70]);
+                }
+            }
+
+            var option = {
+                backgroundColor: 'transparent',
+                tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+                legend: { textStyle: { color: '#fff' } },
+                grid: [
+                    { left: '3%', right: '55%', top: '10%', bottom: '10%' }
+                ],
+                xAxis: [
+                    { type: 'value', gridIndex: 0, axisLine: { lineStyle: { color: '#0088ff' } }, axisLabel: { color: '#fff' }, splitLine: { lineStyle: { color: '#003366' } } }
+                ],
+                yAxis: [
+                    { type: 'category', gridIndex: 0, data: names, axisLine: { lineStyle: { color: '#0088ff' } }, axisLabel: { color: '#fff' } }
+                ],
+                visualMap: {
+                    min: 70,
+                    max: 100,
+                    calculable: true,
+                    orient: 'vertical',
+                    right: 0,
+                    top: 'center',
+                    textStyle: { color: '#fff' },
+                    inRange: { color: ['#003366','#0088ff','#00ff88'] }
+                },
+                series: [
+                    { name: '销售额', type: 'bar', xAxisIndex: 0, yAxisIndex: 0, data: sales, label: { show: true, position: 'right', color: '#fff' }, itemStyle: { color: '#0088ff' } },
+                    { name: '出勤日历', type: 'heatmap', data: attendanceData, label: { show: true, color: '#000' } }
+                ]
+            };
+            staffChart.setOption(option, true);
+        }
+
+        function renderCustomerChart() {
+            var ageGroups = mockData.customer.age_groups;
+            var visitData = mockData.customer.visit_frequency;
+
+            var option = {
+                backgroundColor: 'transparent',
+                color: neonColors,
+                tooltip: { trigger: 'item' },
+                legend: { textStyle: { color: '#fff' } },
+                series: [
+                    {
+                        name: '年龄段分布',
+                        type: 'pie',
+                        radius: ['30%','55%'],
+                        center: ['30%','50%'],
+                        label: { color: '#fff' },
+                        data: ageGroups.map(function(g){ return { name: g.range, value: g.count }; })
+                    },
+                    {
+                        name: '每周访问量',
+                        type: 'line',
+                        center: ['75%','50%'],
+                        smooth: true,
+                        lineStyle: { width: 4, color: '#ff0088' },
+                        itemStyle: { color: '#ff0088' },
+                        data: visitData.map(function(v){ return v.visits; })
+                    }
+                ],
+                xAxis: [{
+                    type: 'category',
+                    data: visitData.map(function(v){ return v.week; }),
+                    axisLine: { lineStyle: { color: '#0088ff' } },
+                    axisLabel: { color: '#fff' }
+                }],
+                yAxis: [{
+                    type: 'value',
+                    axisLine: { lineStyle: { color: '#0088ff' } },
+                    axisLabel: { color: '#fff' },
+                    splitLine: { lineStyle: { color: '#003366' } }
+                }],
+                grid: { left: '55%', right: '5%', top: '10%', bottom: '10%' }
+            };
+            customerChart.setOption(option, true);
+        }
+
+        function renderTransactionTable() {
+            var tbody = document.querySelector('#transactionTable tbody');
+            tbody.innerHTML = '';
+            mockData.transactions.forEach(function(tx) {
+                var row = document.createElement('tr');
+                row.innerHTML = '<td>' + tx.time + '</td><td>' + tx.orderId + '</td><td style="color:#00ff88">¥' + tx.amount.toFixed(2) + '</td><td>' + tx.payment + '</td><td><span class="status-indicator status-good"></span>' + tx.status + '</td>';
+                tbody.appendChild(row);
+            });
+        }
+
+        function refreshAllData() {
+            generateRandomFluctuation();
+            renderSalesChart();
+            renderInventoryChart();
+            renderStaffChart();
+            renderCustomerChart();
+            renderTransactionTable();
+        }
+
+        function startAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = setInterval(refreshAllData, autoRefreshInterval);
+            document.getElementById('autoRefreshToggle').textContent = '⏸️ 暂停自动刷新';
+            autoRefreshEnabled = true;
+        }
+
+        function stopAutoRefresh() {
+            if (refreshTimer) clearInterval(refreshTimer);
+            refreshTimer = null;
+            document.getElementById('autoRefreshToggle').textContent = '▶️ 开启自动刷新';
+            autoRefreshEnabled = false;
+        }
+
+        function initDashboard() {
+            if (typeof echarts === 'undefined') {
+                console.error('ECharts未加载，3秒后重试...');
+                setTimeout(initDashboard, 3000);
+                return;
+            }
+
+            var sDom = document.getElementById('salesChart');
+            var iDom = document.getElementById('inventoryChart');
+            var stDom = document.getElementById('staffChart');
+            var cDom = document.getElementById('customerChart');
+
+            if (!sDom || !iDom || !stDom || !cDom) {
+                console.error('图表容器未找到，1秒后重试...');
+                setTimeout(initDashboard, 1000);
+                return;
+            }
+
+            salesChart = echarts.init(sDom);
+            inventoryChart = echarts.init(iDom);
+            staffChart = echarts.init(stDom);
+            customerChart = echarts.init(cDom);
+
+            renderSalesChart();
+            renderInventoryChart();
+            renderStaffChart();
+            renderCustomerChart();
+            renderTransactionTable();
+            startAutoRefresh();
+
+            document.getElementById('storeSelect').addEventListener('change', refreshAllData);
+            document.getElementById('refreshBtn').addEventListener('click', refreshAllData);
+            document.getElementById('autoRefreshToggle').addEventListener('click', function() {
+                if (autoRefreshEnabled) { stopAutoRefresh(); } else { startAutoRefresh(); }
+            });
+
+            window.addEventListener('resize', function() {
+                salesChart.resize();
+                inventoryChart.resize();
+                staffChart.resize();
+                customerChart.resize();
+            });
+
+            console.log('大屏初始化完成');
+        }
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initDashboard);
+        } else {
+            initDashboard();
+        }
+    </script>
+</body>
+</html>

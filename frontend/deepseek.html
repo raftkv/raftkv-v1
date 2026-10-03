@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>RaftKV · DeepSeek 统一算力与智能体管控控制台</title>
+<script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
+<style>
+/* ============================================================
+   RaftKV · DeepSeek 统一算力与智能体管控控制台
+   配色: 虚空黑 + DeepSeek蓝 + GPU绿 + 确定性金 + NPU紫
+   布局: 左(集群拓扑) + 中(任务链路) + 右(确定性审计)
+   ============================================================ */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#000510;--ds:#4A90D9;--gd:#ffd740;--gr:#00e676;
+  --dr:#ff2d55;--am:#ffab40;--pr:#9b59b6;--cy:#00e5ff;
+  --tx:#d0d8ff;--dm:#3a5470;--wt:#64b5f6;
+}
+
+body{background:var(--bg);font-family:'Rajdhani','Noto Sans SC','JetBrains Mono',sans-serif;overflow:hidden;height:100vh;color:var(--tx)}
+
+#particles{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.85}
+.bg-grid{position:fixed;inset:0;z-index:1;pointer-events:none;opacity:.06;
+  background-image:linear-gradient(rgba(74,144,217,.1) 1px,transparent 1px),linear-gradient(90deg,rgba(74,144,217,.1) 1px,transparent 1px);background-size:64px 64px}
+.bg-scan{position:fixed;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(74,144,217,.012) 3px,rgba(74,144,217,.012) 6px);animation:scan 9s linear infinite}
+@keyframes scan{from{transform:translateY(0)}to{transform:translateY(12px)}}
+
+.app{position:relative;z-index:10;display:flex;flex-direction:column;height:100vh}
+
+/* Header */
+.hdr{flex-shrink:0;height:58px;background:linear-gradient(180deg,rgba(0,7,18,.96),rgba(0,3,10,.82));backdrop-filter:blur(20px);border-bottom:1px solid rgba(74,144,217,.15);padding:0 14px;display:flex;align-items:center;justify-content:space-between;box-shadow:0 0 40px rgba(74,144,217,.05)}
+.hdr::after{content:'';position:absolute;bottom:0;left:0;width:100%;height:1px;background:linear-gradient(90deg,transparent,var(--ds),var(--gd),var(--pr),var(--ds),transparent)}
+.hdr-l{display:flex;align-items:center;gap:12px}
+.logo{width:36px;height:36px;border:2px solid var(--ds);border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--ds);font-size:1rem;text-shadow:0 0 12px var(--ds);animation:spin 6s linear infinite}
+@keyframes spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+.hdr h1{font-family:'Orbitron',sans-serif;font-size:1.3rem;font-weight:900;letter-spacing:2px;background:linear-gradient(135deg,#fff 0%,#a0d0ff 40%,var(--ds) 100%);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hdr .sub{font-size:.50rem;color:var(--ds);letter-spacing:1.5px;font-weight:600}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.pill{display:flex;align-items:center;gap:5px;padding:2.5px 12px;border-radius:16px;background:rgba(0,3,8,.85);border:1px solid rgba(74,144,217,.15);font-size:.56rem;font-weight:600}
+.pill .dot{width:5px;height:5px;border-radius:50%;background:var(--gr);box-shadow:0 0 6px var(--gr)}
+.pill .dot.warn{background:var(--am);box-shadow:0 0 6px var(--am)}
+.clock{font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700;color:var(--ds);text-shadow:0 0 10px rgba(74,144,217,.3);padding:3px 12px;border-radius:16px;background:rgba(0,3,8,.88);border:1px solid rgba(74,144,217,.15)}
+
+/* Main Grid */
+.main{flex:1;display:grid;grid-template-columns:370px 1fr 330px;gap:6px;padding:6px 10px;overflow:hidden}
+
+/* Panel Base */
+.pnl{border-radius:5px;padding:8px 10px;overflow-y:auto;overflow-x:hidden;border:1px solid;display:flex;flex-direction:column}
+.pnl::-webkit-scrollbar{width:2px}
+.pnl::-webkit-scrollbar-thumb{background:rgba(74,144,217,.08);border-radius:2px}
+.pnl-l{background:linear-gradient(180deg,rgba(0,5,16,.92),rgba(0,2,8,.78));border-color:rgba(74,144,217,.1);box-shadow:0 0 25px rgba(74,144,217,.03)}
+.pnl-c{background:linear-gradient(180deg,rgba(0,4,14,.92),rgba(0,2,7,.78));border-color:rgba(255,215,64,.08);box-shadow:0 0 30px rgba(255,215,64,.03)}
+.pnl-r{background:linear-gradient(180deg,rgba(0,5,16,.92),rgba(0,2,8,.78));border-color:rgba(155,89,182,.1);box-shadow:0 0 25px rgba(155,89,182,.03)}
+
+/* Panel Header */
+.ph{flex-shrink:0;display:flex;align-items:center;gap:7px;margin-bottom:6px;padding-bottom:3px;border-bottom:1px solid rgba(255,255,255,.04);font-family:'Orbitron',sans-serif;font-size:.70rem;font-weight:700;letter-spacing:1px;text-transform:uppercase}
+.ph .ic{width:18px;height:18px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:.48rem;color:#000}
+.ph .bdg{margin-left:auto;font-size:.42rem;padding:1px 6px;border-radius:10px;border:1px solid}
+.pnl-l .ph .ic{background:linear-gradient(135deg,var(--ds),var(--cy));box-shadow:0 0 8px var(--ds)}
+.pnl-l .ph .bdg{color:var(--ds);border-color:rgba(74,144,217,.2);background:rgba(74,144,217,.05)}
+.pnl-l .ph{background:linear-gradient(90deg,#a0d0ff,var(--ds));-webkit-background-clip:text;background-clip:text;color:transparent}
+.pnl-c .ph .ic{background:linear-gradient(135deg,var(--gd),var(--pr));box-shadow:0 0 8px var(--gd)}
+.pnl-c .ph .bdg{color:var(--gd);border-color:rgba(255,215,64,.2)}
+.pnl-c .ph{background:linear-gradient(90deg,#ffe8a0,var(--pr));-webkit-background-clip:text;background-clip:text;color:transparent}
+.pnl-r .ph .ic{background:linear-gradient(135deg,var(--pr),var(--cy));box-shadow:0 0 8px var(--pr)}
+.pnl-r .ph .bdg{color:var(--pr);border-color:rgba(155,89,182,.2)}
+.pnl-r .ph{background:linear-gradient(90deg,#e0c0ff,var(--pr));-webkit-background-clip:text;background-clip:text;color:transparent}
+
+/* Stat rows */
+.sr{display:flex;justify-content:space-between;align-items:center;padding:3px 6px;margin:2px 0;background:rgba(0,6,15,.4);border:1px solid rgba(255,255,255,.03);border-radius:3px;font-size:.56rem;font-weight:600}
+.sr .lbl{color:var(--dm)}.sr .val{font-family:monospace}
+.v-ok{color:var(--gr)}.v-warn{color:var(--am)}.v-err{color:var(--dr)}.v-ds{color:var(--ds)}.v-gd{color:var(--gd)}.v-pr{color:var(--pr)}
+
+/* Node Card */
+.node-card{background:linear-gradient(135deg,rgba(0,6,16,.65),rgba(0,2,6,.65));border:1px solid rgba(74,144,217,.08);border-radius:4px;padding:6px 8px;margin:2px 0;transition:.2s}
+.node-card:hover{border-color:rgba(74,144,217,.3);box-shadow:0 0 12px rgba(74,144,217,.08)}
+.node-card .nc-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:3px}
+.node-card .nc-name{font-family:'Orbitron',monospace;font-size:.58rem;font-weight:700;color:var(--ds)}
+.node-card .nc-status{font-size:.42rem;padding:1px 5px;border-radius:8px;font-weight:700}
+.node-card .nc-status.ok{background:rgba(0,230,118,.1);color:var(--gr);border:1px solid rgba(0,230,118,.2)}
+.node-card .nc-status.warn{background:rgba(255,171,64,.1);color:var(--am);border:1px solid rgba(255,171,64,.2)}
+.node-card .nc-status.err{background:rgba(255,45,85,.1);color:var(--dr);border:1px solid rgba(255,45,85,.2);animation:pulse .6s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.node-card .nc-bar{height:4px;border-radius:2px;margin:2px 0;background:rgba(255,255,255,.03);overflow:hidden}
+.node-card .nc-bar .fill{border-radius:2px;transition:.4s}
+.node-card .nc-detail{display:flex;gap:8px;font-size:.46rem;color:var(--dm)}
+
+/* Progress bars */
+.pbar{height:4px;border-radius:2px;margin:2px 0;background:rgba(255,255,255,.03);overflow:hidden;flex-shrink:0}
+.pbar .fil{border-radius:2px;transition:.4s}
+
+/* Charts */
+.chart-sm{width:100%;height:90px;flex-shrink:0;margin:2px 0}
+.chart-md{width:100%;height:140px;flex-shrink:0;margin:3px 0}
+.chart-lg{width:100%;height:200px;flex-shrink:0;margin:4px 0}
+
+/* Task trace list */
+.task-trace{list-style:none;flex:1;overflow-y:auto}
+.task-trace li{display:flex;align-items:flex-start;gap:5px;padding:3px 5px;border-bottom:1px solid rgba(255,255,255,.02);font-size:.54rem;transition:.15s}
+.task-trace li:hover{background:rgba(74,144,217,.04)}
+.task-trace .tt-id{font-family:'Orbitron',monospace;font-size:.46rem;color:var(--ds);min-width:60px;flex-shrink:0}
+.task-trace .tt-phase{font-size:.40rem;padding:1px 4px;border-radius:3px;font-weight:700;min-width:40px;text-align:center;flex-shrink:0}
+.task-trace .tt-msg{flex:1;line-height:1.3}
+.tt-pending{background:rgba(74,144,217,.08);color:var(--ds);border:1px solid rgba(74,144,217,.2)}
+.tt-running{background:rgba(0,230,118,.08);color:var(--gr);border:1px solid rgba(0,230,118,.2)}
+.tt-complete{background:rgba(255,215,64,.08);color:var(--gd);border:1px solid rgba(255,215,64,.2)}
+.tt-failed{background:rgba(255,45,85,.08);color:var(--dr);border:1px solid rgba(255,45,85,.2)}
+
+/* Audit fingerprint */
+.fp-row{display:flex;justify-content:space-between;align-items:center;padding:3px 6px;margin:2px 0;background:rgba(0,6,15,.4);border:1px solid rgba(255,255,255,.03);border-radius:3px;font-size:.56rem}
+.fp-hash{font-family:'JetBrains Mono',monospace;font-size:.42rem;color:var(--pr);word-break:break-all}
+.fp-ok{color:var(--gr);font-weight:700}
+
+/* Divider */
+.dv{height:1px;margin:4px 0;flex-shrink:0;background:linear-gradient(90deg,transparent,rgba(255,215,64,.06) 30%,rgba(255,215,64,.06) 70%,transparent)}
+
+/* Responsive */
+@media(max-width:1400px){.main{grid-template-columns:300px 1fr 280px}}
+@media(max-width:1024px){.main{grid-template-columns:1fr 1fr;overflow-y:auto}.pnl-l{grid-column:1}.pnl-c{grid-column:2;grid-row:1/span2}.pnl-r{grid-column:1/span2}}
+@media(max-width:768px){.main{grid-template-columns:1fr}.pnl-l,.pnl-c,.pnl-r{grid-column:1!important;grid-row:auto!important}}
+</style>
+</head>
+<body>
+<canvas id="particles"></canvas><div class="bg-grid"></div><div class="bg-scan"></div>
+<div class="app">
+<header class="hdr">
+  <div class="hdr-l"><div class="logo">&#x25C8;</div><div><h1>DAI JING 235 · DeepSeek</h1><div class="sub">&#x7EDF;&#x4E00;&#x7B97;&#x529B;&#x4E0E;&#x667A;&#x80FD;&#x4F53;&#x7BA1;&#x63A7;&#x63A7;&#x5236;&#x53F0;</div></div></div>
+  <div class="hdr-r">
+    <span class="pill" id="degPill" style="display:none"><span class="dot warn"></span>&#x964D;&#x7EA7;&#x53EA;&#x8BFB;</span>
+    <span class="pill"><span class="dot"></span>&#x96C6;&#x7FA4;<b id="hdAlive">3</b>/<span id="hdTotal">3</span></span>
+    <span class="pill"><span class="dot"></span>GPU <b id="hdGpu">0</b></span>
+    <span class="clock" id="clk">00:00:00</span>
+  </div>
+</header>
+<div class="main">
+
+<!-- ============ LEFT: 集群节点监控 ============ -->
+<div class="pnl pnl-l">
+  <div class="ph"><span class="ic">&#x238D;</span>&#x96C6;&#x7FA4;&#x8282;&#x70B9;&#x76D1;&#x63A7;<span class="bdg">NODES</span></div>
+  <div class="sr"><span class="lbl">&#x8282;&#x70B9;&#x6570;</span><span class="val v-ds" id="ndTotal">8</span><span class="lbl">&#x53EF;&#x7528;GPU</span><span class="val v-ok" id="ndAvail">48</span></div>
+  <div class="sr"><span class="lbl">&#x5065;&#x5EB7;&#x8BC4;&#x5206;</span><span class="val v-ok" id="ndHealth">96.5</span><span class="lbl">Avg&#x5229;&#x7528;&#x7387;</span><span class="val v-gd" id="ndUtil">62.3%</span></div>
+  <div class="chart-sm" id="chTopo"></div>
+  <div class="dv"></div>
+  <div id="nodeList"></div>
+</div>
+
+<!-- ============ CENTER: Agent 任务链路 ============ -->
+<div class="pnl pnl-c">
+  <div class="ph"><span class="ic">&#x231B;</span>Agent&#x4EFB;&#x52A1;&#x6267;&#x884C;&#x94FE;&#x8DEF;<span class="bdg">PIPELINE</span></div>
+  <div class="sr"><span class="lbl">&#x6D3B;&#x8DC3;&#x4EFB;&#x52A1;</span><span class="val v-ds" id="tkActive">12</span><span class="lbl">&#x5F85;&#x8C03;&#x5EA6;</span><span class="val v-warn" id="tkPending">3</span><span class="lbl">&#x5DF2;&#x5B8C;&#x6210;</span><span class="val v-ok" id="tkDone">2847</span></div>
+  <div class="sr"><span class="lbl">Avg&#x8C03;&#x5EA6;&#x5EF6;&#x8FDF;</span><span class="val v-ds" id="tkLat">18.4ms</span><span class="lbl">&#x541E;&#x5410;</span><span class="val v-gd" id="tkTps">2847 t/s</span><span class="lbl">&#x6210;&#x529F;&#x7387;</span><span class="val v-ok" id="tkSucc">98.7%</span></div>
+  <div class="chart-md" id="chDist"></div>
+  <div class="chart-md" id="chTrace"></div>
+  <div class="dv"></div>
+  <div style="font-size:.52rem;color:var(--dm);margin-bottom:2px">&#x4EFB;&#x52A1;&#x6267;&#x884C;&#x8FFD;&#x8E2A; (&#x6700;&#x8FD1; 20 &#x6761;)</div>
+  <ul class="task-trace" id="taskTrace"></ul>
+</div>
+
+<!-- ============ RIGHT: 确定性审计 ============ -->
+<div class="pnl pnl-r">
+  <div class="ph"><span class="ic">&#x029D7;</span>&#x786E;&#x5B9A;&#x6027;&#x5BA1;&#x8BA1;<span class="bdg">SM3</span></div>
+  <div class="sr"><span class="lbl">SM3&#x94FE;&#x6DF1;</span><span class="val v-gd" id="smDepth">47,281</span><span class="lbl">&#x5E8F;&#x5217;</span><span class="val v-pr" id="smSeq">#12847</span></div>
+  <div class="sr"><span class="lbl">&#x6700;&#x65B0;&#x54C8;&#x5E0C;</span><span class="fp-hash" id="smHash">0xda235e8a1b4c...f97d</span></div>
+  <div class="sr"><span class="lbl">&#x94FE;&#x5B8C;&#x6574;&#x6027;</span><span class="val v-ok" id="smVerify">&#x2713; VERIFIED</span><span class="lbl">&#x7B97;&#x6CD5;</span><span class="val v-pr">SM3 (GM/T 0004)</span></div>
+  <div class="dv"></div>
+  <div class="chart-sm" id="chFingerprint"></div>
+  <div class="dv"></div>
+  <div style="font-size:.52rem;color:var(--dm);margin-bottom:2px">&#x4EFB;&#x52A1;&#x786E;&#x5B9A;&#x6027;&#x6307;&#x7EB9; (&#x6700;&#x8FD1; 15 &#x6761;)</div>
+  <div id="fpList" style="flex:1;overflow-y:auto;font-size:.50rem"></div>
+</div>
+
+</div></div>
+
+<script>
+(function(){
+'use strict';
+// ==================== Particle Background ====================
+var c=document.getElementById('particles'),ctx=c.getContext('2d'),w,h,ps=[];
+function rs(){w=c.width=window.innerWidth;h=c.height=window.innerHeight}
+function ip(){rs();ps=[];for(var i=0;i<70;i++)ps.push({x:Math.random()*w,y:Math.random()*h,r:.3+Math.random()*1,vy:-.12-Math.random()*.35,vx:(Math.random()-.5)*.2,o:.12+Math.random()*.45,cl:i%3===0?'rgba(74,144,217,':i%3===1?'rgba(255,215,64,':'rgba(155,89,182,'})}
+function dr(){ctx.clearRect(0,0,w,h);for(var i=0;i<ps.length;i++){var p=ps[i];p.y+=p.vy;p.x+=p.vx;if(p.y<0)p.y=h;if(p.x<0)p.x=w;if(p.x>w)p.x=0;ctx.beginPath();ctx.arc(p.x,p.y,p.r,0,2*Math.PI);ctx.fillStyle=p.cl+p.o+')';ctx.fill()}requestAnimationFrame(dr)}
+ip();dr();window.addEventListener('resize',function(){rs();ip()});
+function tickClk(){var d=new Date();document.getElementById('clk').textContent=d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0')}
+tickClk();setInterval(tickClk,1000);
+
+// ==================== Data Model ====================
+var CLUSTER_NODES=[
+  {id:'node-hk-01',name:'GPU-H800-01',gpus:8,model:'H800-80GB',arch:'Hopper',vram:80,cpu:192,ram:2048,util:0.78,state:'ok',rack:'HK-R42',zone:'hongkong',lat:4},
+  {id:'node-hk-02',name:'GPU-H800-02',gpus:8,model:'H800-80GB',arch:'Hopper',vram:80,cpu:192,ram:2048,util:0.92,state:'ok',rack:'HK-R42',zone:'hongkong',lat:5},
+  {id:'node-hk-03',name:'GPU-H800-03',gpus:8,model:'H800-80GB',arch:'Hopper',vram:80,cpu:192,ram:2048,util:0.65,state:'ok',rack:'HK-R43',zone:'hongkong',lat:6},
+  {id:'node-hk-04',name:'GPU-A100-01',gpus:8,model:'A100-80GB',arch:'Ampere',vram:80,cpu:128,ram:1024,util:0.55,state:'ok',rack:'HK-R43',zone:'hongkong',lat:7},
+  {id:'node-sh-01',name:'GPU-H100-01',gpus:8,model:'H100-80GB',arch:'Hopper',vram:80,cpu:256,ram:4096,util:0.88,state:'ok',rack:'SH-R12',zone:'shanghai',lat:28},
+  {id:'node-sh-02',name:'GPU-Ascend-01',gpus:8,model:'Ascend-910B',arch:'Ascend',vram:64,cpu:128,ram:1024,util:0.42,state:'ok',rack:'SH-R12',zone:'shanghai',lat:29},
+  {id:'node-bj-01',name:'GPU-H800-04',gpus:8,model:'H800-80GB',arch:'Hopper',vram:80,cpu:192,ram:2048,util:0.71,state:'ok',rack:'BJ-R08',zone:'beijing',lat:42},
+  {id:'node-bj-02',name:'NPU-MLU-01',gpus:4,model:'MLU590',arch:'Cambricon',vram:48,cpu:96,ram:512,util:0.33,state:'ok',rack:'BJ-R08',zone:'beijing',lat:44},
+];
+
+var TASK_STATES=['pending','scheduled','running','running','running','running','running','running','running','running','running','running','complete','complete','complete'];
+var TASK_IDS=0;
+
+function mkTask(){TASK_IDS++;return{id:'tu-'+String(TASK_IDS).padStart(6,'0'),phase:TASK_STATES[Math.floor(Math.random()*TASK_STATES.length)],node:CLUSTER_NODES[Math.floor(Math.random()*CLUSTER_NODES.length)].id,model:Math.random()>.5?'DeepSeek-V3':'DeepSeek-R1',temp:0,seed:235,moe:'fixed',prec:'fp8',tokens:Math.floor(Math.random()*5000),sm3:'0x'+Array(16).fill(0).map(function(){return Math.floor(Math.random()*16).toString(16)}).join(''),time:Date.now()}}
+var tasks=[],fingerprints=[];
+for(var i=0;i<50;i++){var t=mkTask();tasks.push(t);if(t.phase==='complete')fingerprints.push(t)}
+while(fingerprints.length<30){var tf=mkTask();tf.phase='complete';fingerprints.push(tf)}
+
+// ==================== Panel Rendering ====================
+function renderNodes(){
+  var html='';
+  for(var i=0;i<CLUSTER_NODES.length;i++){
+    var n=CLUSTER_NODES[i];
+    var stCls=n.state==='err'?'err':n.util>.85?'warn':'ok';
+    var stTxt=n.state==='err'?'故障':n.util>.85?'高负载':'在线';
+    var utilPct=Math.round(n.util*100);
+    var gpuFree=n.gpus-Math.floor(n.gpus*n.util);
+    html+='<div class="node-card">'+
+      '<div class="nc-top"><span class="nc-name">'+n.name+'</span><span class="nc-status '+stCls+'">'+stTxt+'</span></div>'+
+      '<div class="nc-bar"><div class="fill" style="width:'+utilPct+'%;background:linear-gradient(90deg,'+(utilPct>85?'var(--dr)':utilPct>60?'var(--am)':'var(--gr)')+',var(--ds))"></div></div>'+
+      '<div class="nc-detail"><span>'+n.model+'</span><span>GPU '+gpuFree+'/'+n.gpus+'</span><span>VRAM '+n.vram+'G</span><span>'+n.rack+'</span><span>'+n.lat+'ms</span></div></div>';
+  }
+  document.getElementById('nodeList').innerHTML=html;
+
+  document.getElementById('ndTotal').textContent=CLUSTER_NODES.length;
+  var totalFree=CLUSTER_NODES.reduce(function(s,n){return s+n.gpus-Math.floor(n.gpus*n.util)},0);
+  document.getElementById('ndAvail').textContent=totalFree;
+  var avgH=CLUSTER_NODES.reduce(function(s,n){return s+(n.state==='err'?30:95)},0)/CLUSTER_NODES.length;
+  document.getElementById('ndHealth').textContent=avgH.toFixed(1);
+  var avgU=CLUSTER_NODES.reduce(function(s,n){return s+n.util},0)/CLUSTER_NODES.length*100;
+  document.getElementById('ndUtil').textContent=avgU.toFixed(1)+'%';
+  document.getElementById('hdGpu').textContent=totalFree;
+}
+
+function renderTasks(){
+  var active=tasks.filter(function(t){return t.phase==='running'||t.phase==='scheduled'}).length;
+  var pending=tasks.filter(function(t){return t.phase==='pending'}).length;
+  var done=tasks.filter(function(t){return t.phase==='complete'}).length;
+  document.getElementById('tkActive').textContent=active;
+  document.getElementById('tkPending').textContent=pending;
+  document.getElementById('tkDone').textContent=done;
+  document.getElementById('tkLat').textContent=(14+Math.random()*12).toFixed(1)+'ms';
+  document.getElementById('tkTps').textContent=(2400+Math.floor(Math.random()*1600))+' t/s';
+  document.getElementById('tkSucc').textContent=(97+Math.random()*3).toFixed(1)+'%';
+
+  var recent=tasks.filter(function(t){return Date.now()-t.time<60000}).slice(-15).reverse();
+  var html='';
+  for(var i=0;i<recent.length;i++){
+    var t=recent[i];
+    var pc=t.phase==='pending'?'tt-pending':t.phase==='running'||t.phase==='scheduled'?'tt-running':t.phase==='complete'?'tt-complete':'tt-failed';
+    var pt=t.phase==='pending'?'待调度':t.phase==='scheduled'?'已分配':t.phase==='running'?'执行中':t.phase==='complete'?'完成':'失败';
+    var nodeName='';for(var j=0;j<CLUSTER_NODES.length;j++){if(CLUSTER_NODES[j].id===t.node){nodeName=CLUSTER_NODES[j].name;break}}
+    html+='<li><span class="tt-id">'+t.id.substring(3)+'</span><span class="tt-phase '+pc+'">'+pt+'</span><span class="tt-msg">'+t.model+' · '+t.temp.toFixed(0)+'/'+t.seed+'/'+t.moe+' · '+nodeName+' · '+t.tokens+'tok</span></li>';
+  }
+  document.getElementById('taskTrace').innerHTML=html;
+}
+
+function renderFingerprints(){
+  var recent=fingerprints.slice(-15).reverse();
+  var html='';
+  for(var i=0;i<recent.length;i++){
+    var f=recent[i];
+    html+='<div class="fp-row"><span style="color:var(--ds)">'+f.id.substring(3)+'</span><span style="color:var(--dm)">'+f.model+'</span><span class="fp-hash">'+f.sm3.substring(0,16)+'...</span><span class="fp-ok">&#x2713;</span></div>';
+  }
+  document.getElementById('fpList').innerHTML=html;
+  document.getElementById('smDepth').textContent=(47281+fingerprints.length).toLocaleString();
+  document.getElementById('smSeq').textContent='#'+(12847+fingerprints.length);
+  document.getElementById('smHash').textContent='0x'+fingerprints[fingerprints.length-1].sm3.substring(2,16)+'...'+fingerprints[fingerprints.length-1].sm3.substring(18,22);
+}
+
+// ==================== ECharts ====================
+var $c={};
+function initCharts(){
+  var db='#000510',dt='#3a5470';
+  // Topology chart
+  var td=document.getElementById('chTopo');
+  if(td){$c.topo=echarts.init(td);$c.topo.setOption({
+    tooltip:{formatter:'{b}: {c} 节点'},
+    series:[{type:'treemap',data:[{name:'香港',value:4,itemStyle:{color:'rgba(74,144,217,.7)'}},{name:'上海',value:2,itemStyle:{color:'rgba(0,230,118,.6)'}},{name:'北京',value:2,itemStyle:{color:'rgba(155,89,182,.6)'}}],label:{color:db,fontSize:9,fontFamily:'Orbitron'},breadcrumb:{show:false}}]
+  })}
+
+  // Task distribution
+  var dd=document.getElementById('chDist');
+  if(dd){$c.dist=echarts.init(dd);$c.dist.setOption({
+    grid:{top:8,right:8,bottom:18,left:8},
+    xAxis:{type:'category',data:CLUSTER_NODES.map(function(n){return n.name.substring(0,6)}),axisLabel:{color:dt,fontSize:7,fontFamily:'Orbitron',rotate:30},axisLine:{lineStyle:{color:dt}}},
+    yAxis:{type:'value',axisLabel:{color:dt,fontSize:7},splitLine:{lineStyle:{color:'rgba(255,255,255,.03)'}}},
+    series:[{type:'bar',data:CLUSTER_NODES.map(function(){return Math.floor(Math.random()*6)+1}),itemStyle:{color:'rgba(74,144,217,.6)',borderRadius:[3,3,0,0]},barWidth:12}]
+  })}
+
+  // Execution trace
+  var td2=document.getElementById('chTrace');
+  if(td2){$c.trace=echarts.init(td2);$c.trace.setOption({
+    grid:{top:8,right:8,bottom:18,left:36},
+    xAxis:{type:'category',data:Array(20).fill(''),show:false},
+    yAxis:{type:'value',axisLabel:{color:dt,fontSize:7},splitLine:{lineStyle:{color:'rgba(255,255,255,.03)'}}},
+    series:[
+      {name:'Latency',type:'line',data:Array(20).fill(0).map(function(){return 10+Math.random()*30}),smooth:true,lineStyle:{color:'#4A90D9',width:1.5},itemStyle:{color:'#4A90D9'},symbol:'none',areaStyle:{color:'rgba(74,144,217,.08)'}},
+    ]
+  })}
+
+  // Fingerprint chart
+  var fd=document.getElementById('chFingerprint');
+  if(fd){$c.fp=echarts.init(fd);$c.fp.setOption({
+    grid:{top:4,right:4,bottom:4,left:36},
+    xAxis:{type:'category',show:false,data:Array(30).fill('')},
+    yAxis:{type:'value',show:false,min:0,max:60},
+    series:[{type:'bar',data:Array(30).fill(0).map(function(){return 20+Math.random()*35}),itemStyle:{color:new echarts.graphic.LinearGradient(0,0,0,1,[{offset:0,color:'#9b59b6'},{offset:1,color:'rgba(155,89,182,.1)'}])},barWidth:'70%'}]
+  })}
+}
+
+function updateCharts(){
+  if($c.dist){$c.dist.setOption({series:[{data:CLUSTER_NODES.map(function(){return Math.floor(Math.random()*6)+1})}]})}
+  if($c.trace){$c.trace.setOption({series:[{data:Array(20).fill(0).map(function(){return 8+Math.random()*35})}]})}
+  if($c.fp){$c.fp.setOption({series:[{data:Array(30).fill(0).map(function(){return 15+Math.random()*40})}]})}
+}
+
+// ==================== Simulation Loop ====================
+function simTick(){
+  // Update node utilization
+  for(var i=0;i<CLUSTER_NODES.length;i++){
+    CLUSTER_NODES[i].util=Math.max(.2,Math.min(.98,CLUSTER_NODES[i].util+(Math.random()-.5)*.08));
+  }
+  // Add new task
+  if(Math.random()<.4){var t=mkTask();tasks.push(t);if(t.phase==='complete')fingerprints.push(t)}
+  if(tasks.length>200)tasks.splice(0,10);
+  if(fingerprints.length>200)fingerprints.splice(0,10);
+  // Randomly complete/fail some running tasks
+  for(var j=0;j<tasks.length;j++){
+    if((tasks[j].phase==='running'||tasks[j].phase==='scheduled')&&Math.random()<.15){
+      tasks[j].phase=Math.random()>.08?'complete':'failed';
+      if(tasks[j].phase==='complete'){fingerprints.push(tasks[j])}
+    }
+  }
+  renderNodes();renderTasks();renderFingerprints();updateCharts();
+}
+
+setTimeout(initCharts,200);
+setTimeout(function(){renderNodes();renderTasks();renderFingerprints()},300);
+setInterval(simTick,2000);
+})();
+</script>
+</body>
+</html>

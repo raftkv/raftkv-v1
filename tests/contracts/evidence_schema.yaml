@@ -1,0 +1,101 @@
+# evidence_schema.yaml — 四段留证结构化 schema
+#
+# batch31 起新场景强制按 schema 留证，judge 校验字段完整性。
+# 四段: 注入(injection) → 观测(observation) → 恢复(recovery) → 断言(assertion)
+# 必填字段含恢复段耗时(recovery.duration_s)
+
+schema_version: "1.0"
+defined_at: "batch30"
+description: "四段留证结构化 schema，新场景强制按此格式留证"
+
+# 四段结构
+sections:
+
+  injection:
+    description: "故障注入段——注入了什么故障，注入到哪个节点，参数是什么"
+    required_fields:
+      - name: scenario_id
+        type: string
+        description: "场景唯一标识"
+      - name: scenario_type
+        type: string
+        description: "场景类型（如 composite_partition_diskfull）"
+      - name: fault_type
+        type: string
+        description: "故障类型（partition/disk_full/kill/compound）"
+      - name: target_nodes
+        type: list
+        description: "注入目标节点列表"
+      - name: parameters
+        type: object
+        description: "注入参数（如 pressure_level, duration_s, partition_type）"
+      - name: timestamp
+        type: string
+        description: "注入时间戳"
+    optional_fields:
+      - name: leader_before
+        type: string
+        description: "注入前 leader 节点"
+
+  observation:
+    description: "观测段——测量了什么，结果是什么"
+    required_fields:
+      - name: metrics
+        type: object
+        description: "测量指标键值对"
+      - name: timeline
+        type: list
+        description: "事件时间线"
+      - name: timestamp_start
+        type: string
+        description: "观测开始时间"
+      - name: timestamp_end
+        type: string
+        description: "观测结束时间"
+    optional_fields:
+      - name: raw_data_path
+        type: string
+        description: "原始数据文件路径"
+
+  recovery:
+    description: "恢复段——恢复操作，恢复耗时（必填）"
+    required_fields:
+      - name: operation
+        type: string
+        description: "恢复操作描述（如 reconnect/clean_disk/restart）"
+      - name: duration_s
+        type: number
+        description: "恢复耗时（秒）——必填字段"
+        required: true
+      - name: confirmed
+        type: boolean
+        description: "恢复是否确认"
+      - name: timestamp
+        type: string
+        description: "恢复完成时间戳"
+    optional_fields:
+      - name: post_recovery_metrics
+        type: object
+        description: "恢复后指标"
+
+  assertion:
+    description: "断言段——验收项，PASS/FAIL"
+    required_fields:
+      - name: checks
+        type: list
+        description: "验收项列表，每项含 name/expected/actual/status"
+      - name: overall_status
+        type: string
+        description: "总体状态 PASS/FAIL"
+        enum: ["PASS", "FAIL"]
+    optional_fields:
+      - name: threshold_source
+        type: string
+        description: "阈值来源（如 regression.yaml REG-10）"
+
+# 存量留证标记
+legacy:
+  description: "batch29 及之前存量留证未按 schema 格式，标记 legacy 保留原格式"
+  marker: "legacy"
+  conversion: "batch30 任务四将 batch29 复合场景存量留证补转 schema 格式"
+ 禁止: "禁伪造——存量留证无法回溯转换时保留原格式+标记 legacy，不伪造 schema 字段"

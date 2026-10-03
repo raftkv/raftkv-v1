@@ -1,0 +1,275 @@
+# batch23 pre-vote 防选票分裂 + 磁盘满故障注入 — 验收契约
+# 版本: v2.4-batch23-prevote-diskfull
+# 关联: spec.md §5.1 pre-vote / §5.2 磁盘满 / §6 证据数据约束 / §8 红线清单
+# 前身: batch22.yaml (E1=1.6003s, E2=1, E3=20%, S1=100%, S2=20, F1-F5 全 PASS)
+
+contract:
+  name: batch23-prevote-diskfull
+  version: "1.0"
+  description: "pre-vote 防选票分裂 + 磁盘满故障注入实施"
+
+# 继承 batch22 F1-F5 + E1-E3 + S1-S2 作为回归基线
+acceptance_criteria:
+  F1:
+    name: election_completion_time
+    description: "[回归] 选举完成时间中位值 ≤ 5.0s"
+    metric: median_of_3
+    threshold: 5.0
+    unit: seconds
+    operator: "<="
+    scope: steady_scenarios
+    judgment: "取稳态场景 election completion_duration，3 次取中位，max(medians) ≤ 5s"
+
+  F2:
+    name: reject_rate
+    description: "[回归] 注入期间拒载率 ≤ 30%，恢复后拒载率 = 0"
+    during_injection:
+      threshold: 30.0
+      unit: percent
+      operator: "<="
+    after_recovery:
+      threshold: 0
+      unit: percent
+      operator: "=="
+    scope: all_scenarios
+    judgment: "注入期间 max(reject_rate) ≤ 30%，恢复后 all(post_recovery_reject_rate == 0)"
+
+  F3:
+    name: confirmed_write_survival
+    description: "[回归] 已确认写入存活率 = 100%"
+    metric: sampling_comparison
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    sample_count: 20
+    scope: all_scenarios
+    judgment: "min(survival_rate) == 100%，附 mismatched_entries 详情"
+
+  F4:
+    name: no_split_brain
+    description: "[回归] 任意时刻最大并发 leader 数 ≤ 1"
+    metric: max_concurrent_leaders
+    threshold: 1
+    operator: "<="
+    scope: all_scenarios
+    detection_window: 5s
+    poll_interval: 50ms
+    judgment: "max(max_concurrent_leaders) ≤ 1"
+
+  F5:
+    name: structured_log_complete
+    description: "[回归] 结构化日志完整且可回放"
+    metrics:
+      timeline_complete: true
+      replayable: true
+    scope: all_scenarios
+    judgment: "all(timeline_complete) and all(replayable)"
+
+  E1:
+    name: election_optimization
+    description: "选举优化：稳态 3 次取中位 ≤ 2.0s"
+    metric: median_of_3
+    threshold: 2.0
+    unit: seconds
+    operator: "<="
+    scope: steady_prevote_scenarios
+    judgment: "取稳态场景 election completion_duration 排序后取中间 3 个的中位 ≤ 2s"
+    improvement: "batch22 E1=1.6003s → batch23 E1 ≤ 2.0s（pre-vote 防选票分裂）"
+
+  E2:
+    name: no_split_brain_regression
+    description: "脑裂检测：max_concurrent_leaders ≤ 1"
+    metric: max_concurrent_leaders
+    threshold: 1
+    operator: "<="
+    scope: all_scenarios
+    judgment: "max(max_concurrent_leaders) ≤ 1"
+
+  E3:
+    name: reject_rate_under_load
+    description: "压测下拒载率 ≤ 30%"
+    metric: max_reject_rate
+    threshold: 30.0
+    unit: percent
+    operator: "<="
+    scope: all_scenarios
+    judgment: "max(reject_rate) ≤ 30%"
+
+  E4:
+    name: cascading_election_convergence
+    description: "cascading 选举收敛：每次选举 ≤ 2.0s"
+    metric: max_completion_duration
+    threshold: 2.0
+    unit: seconds
+    operator: "<="
+    scope: cascading_prevote_scenarios
+    judgment: "cascading 场景每次选举 completion_duration ≤ 2s"
+    improvement: "batch22 cascading 3.44s → batch23 E4 ≤ 2.0s（pre-vote 消除选票分裂）"
+
+  S1:
+    name: survival_rate_100
+    description: "已确认写入存活率 = 100%"
+    metric: min_survival_rate
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    sample_count: 20
+    scope: all_scenarios
+    judgment: "min(survival_rate) == 100% 且 min(sampled_entries_count) > 0"
+
+  S2:
+    name: entry_endpoint_available
+    description: "/raft/entry 端点可用：所有场景 sampled_entries_count > 0"
+    metric: min_sampled_count
+    threshold: 1
+    operator: ">="
+    scope: all_scenarios
+    judgment: "min(sampled_entries_count) >= 1"
+
+  PV1:
+    name: prevote_probe_active
+    description: "pre-vote 探测生效：prevote_round_count > 0"
+    metric: prevote_round_count
+    threshold: 0
+    operator: ">"
+    scope: prevote_forensics
+    judgment: "prevote_forensics 场景中 prevote_round_count > 0"
+
+  PV2:
+    name: prevote_term_inflation_controlled
+    description: "pre-vote term 膨胀控制：term_inflation ≤ 5"
+    metric: term_inflation
+    threshold: 5
+    operator: "<="
+    scope: prevote_forensics
+    judgment: "term_after - term_before ≤ 5"
+
+  DF1:
+    name: disk_full_cluster_available
+    description: "磁盘满注入期间集群可用（leader 存在）"
+    metric: cluster_available
+    threshold: true
+    operator: "=="
+    scope: disk_full_scenarios
+    judgment: "all(disk_full scenarios status == PASS)"
+
+  DF2:
+    name: disk_full_survival_rate
+    description: "磁盘满注入期间已确认写入存活率 = 100%"
+    metric: min_survival_rate
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    scope: disk_full_scenarios
+    judgment: "min(survival_rate) == 100%"
+
+  DF3:
+    name: disk_full_no_split_brain
+    description: "磁盘满注入期间无脑裂"
+    metric: max_concurrent_leaders
+    threshold: 1
+    operator: "<="
+    scope: disk_full_scenarios
+    judgment: "max(max_concurrent_leaders) ≤ 1"
+
+  DF4:
+    name: disk_full_cleanup_recovery
+    description: "磁盘满清理后集群恢复"
+    metric: cleanup_recovery
+    threshold: true
+    operator: "=="
+    scope: disk_full_scenarios
+    judgment: "all(disk_full scenarios status == PASS after cleanup)"
+
+scenario_matrix:
+  steady_prevote:
+    count: 10
+    description: "稳态下 kill leader，pre-vote 选举，验证 E1/E2/E3"
+    steps:
+      - "查询当前 leader"
+      - "SnapshotConfirmedEntries(leaderID, 20)"
+      - "kill leader"
+      - "等待选举完成"
+      - "验证 E1/E2/E3/S1/S2"
+      - "重启被 kill 节点"
+
+  cascading_prevote:
+    count: 3
+    description: "连杀 leader + 新 leader，pre-vote 选举收敛"
+    steps:
+      - "查询当前 leader L1"
+      - "SnapshotConfirmedEntries(L1, 20)"
+      - "kill L1 → 等待 L2 选举"
+      - "kill L2 → 等待 L3 选举"
+      - "验证 E4/E2/S1"
+      - "重启 L1 和 L2"
+
+  prevote_forensics:
+    count: 1
+    description: "pre-vote 取证对照：采集轮数/选票分布/term 膨胀"
+    steps:
+      - "采集 term_before"
+      - "执行 cascading 场景"
+      - "采集 prevote_round_count / formal_election_round_count"
+      - "采集 term_after"
+      - "对照 batch22 基线"
+
+  total_scenarios: 14
+
+red_lines:
+  RL-01:
+    name: no_remove_fsync
+    description: "禁去 fsync"
+  RL-02:
+    name: no_skip_quorum
+    description: "禁跳 quorum"
+  RL-03:
+    name: no_shorten_election_timeout
+    description: "禁缩选举超时"
+    note: "batch23: 800ms > rpcTimeout(500ms) ✓"
+  RL-04:
+    name: per_field_yaml_comparison
+    description: "PASS 判定须逐字段对照证据 JSON vs YAML 阈值"
+  RL-05:
+    name: no_param_tuning
+    description: "禁调参刷数"
+  RL-06:
+    name: pipeline_correctness
+    description: "pipeline 正确性三原则不可违反"
+  RL-07:
+    name: no_proto_modification
+    description: "禁改 proto 定义"
+  RL-08:
+    name: evidence_dir_gitignored
+    description: "证据目录不进版本库"
+  RL-09:
+    name: script_judged
+    description: "判定由脚本产出禁自评"
+  RL-10:
+    name: debt_expiry_redline
+    description: "挂账到期未清 = 红线违反"
+  RL-11:
+    name: no_build_artifacts_in_repo
+    description: "构建产物禁止入库"
+
+timebox:
+  duration: 6h
+  on_expire: stop_and_hand_over
+  description: "实现+执行 ≤ 6 小时，到点停手交数据"
+
+evidence_schema:
+  scenario_result:
+    required_fields:
+      - scenario_id
+      - scenario_type
+      - timeline
+      - election_metrics
+      - reject_metrics
+      - survival_metrics
+      - split_brain_metrics
+      - log_metrics
+      - status
+      - evidence_path
+    optional_fields:
+      - mismatched_entries
+      - entry_snapshots

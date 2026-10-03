@@ -1,0 +1,8 @@
+FROM alpine:3.21
+RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+RUN apk add --no-cache ca-certificates tzdata curl
+WORKDIR /app
+COPY gateway-arm64 /app/gateway
+RUN chmod +x /app/gateway
+EXPOSE 9500 9000
+CMD ["/app/gateway"]

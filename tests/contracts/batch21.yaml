@@ -1,0 +1,160 @@
+# batch21 故障注入战役 I — 验收契约
+# 版本: v2.4-batch21-chaos1
+# 关联: spec.md §5.3 F1-F5 / §6.1 YAML 数据约束 / §8 红线清单
+
+contract:
+  name: batch21-chaos1
+  version: "1.0"
+  description: "故障注入战役I：kill leader + 23场景 + F1-F5验收"
+
+acceptance_criteria:
+  F1:
+    name: election_completion_time
+    description: "选举完成时间中位值 ≤ 5.0s"
+    metric: median_of_3
+    threshold: 5.0
+    unit: seconds
+    operator: "<="
+    scope: steady_scenarios
+    judgment: "取稳态场景 election completion_duration，3 次取中位，max(medians) ≤ 5s"
+
+  F2:
+    name: reject_rate
+    description: "注入期间拒载率 ≤ 30%，恢复后拒载率 = 0"
+    during_injection:
+      threshold: 30.0
+      unit: percent
+      operator: "<="
+    after_recovery:
+      threshold: 0
+      unit: percent
+      operator: "=="
+    scope: all_scenarios
+    judgment: "注入期间 max(reject_rate) ≤ 30%，恢复后 all(post_recovery_reject_rate == 0)"
+
+  F3:
+    name: confirmed_write_survival
+    description: "已确认写入存活率 = 100%"
+    metric: sampling_comparison
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    sample_count: 20
+    scope: all_scenarios
+    judgment: "min(survival_rate) == 100%，附 mismatched_entries 详情"
+
+  F4:
+    name: no_split_brain
+    description: "任意时刻最大并发 leader 数 ≤ 1"
+    metric: max_concurrent_leaders
+    threshold: 1
+    operator: "<="
+    scope: all_scenarios
+    detection_window: 5s
+    poll_interval: 50ms
+    judgment: "max(max_concurrent_leaders) ≤ 1"
+
+  F5:
+    name: structured_log_complete
+    description: "结构化日志完整且可回放"
+    metrics:
+      timeline_complete: true
+      replayable: true
+    scope: all_scenarios
+    judgment: "all(timeline_complete) and all(replayable)"
+
+scenario_matrix:
+  steady_kill_leader:
+    count: 10
+    description: "稳态下 kill leader，等待选举完成后恢复"
+    steps:
+      - "查询当前 leader"
+      - "kill leader (docker kill --signal=9)"
+      - "等待选举完成（轮询 /raft/status）"
+      - "验证 F1-F5"
+      - "重启被 kill 节点 (docker start)"
+      - "等待节点健康"
+      - "验证 F2 恢复后拒载率=0"
+
+  under_load_kill_leader:
+    count: 10
+    description: "c=128 压测中 kill leader"
+    concurrency: 128
+    steps:
+      - "启动 loadgen 子进程 (c=128)"
+      - "查询当前 leader"
+      - "kill leader"
+      - "持续压测 10s"
+      - "采集 F1-F5"
+      - "重启被 kill 节点"
+      - "等待节点健康 + 压测结束"
+      - "验证 F2 恢复后拒载率=0"
+
+  cascading_kill:
+    count: 3
+    description: "连杀 leader + 新 leader"
+    steps:
+      - "查询当前 leader L1"
+      - "kill L1"
+      - "等待新 leader L2 选举完成"
+      - "kill L2"
+      - "等待新 leader L3 选举完成"
+      - "验证 F1-F5"
+      - "重启 L1 和 L2"
+      - "等待所有节点健康"
+
+  total_scenarios: 23
+
+red_lines:
+  RL-01:
+    name: no_remove_fsync
+    description: "禁去 fsync（fsync 调用不可移除/跳过/降级）"
+  RL-02:
+    name: no_skip_quorum
+    description: "禁跳 quorum（quorum 确认不可绕过）"
+  RL-03:
+    name: no_shorten_election_timeout
+    description: "禁缩选举超时（electionTimeout 不可调小）"
+  RL-04:
+    name: per_field_yaml_comparison
+    description: "PASS 判定须逐字段对照证据 JSON vs YAML 阈值"
+  RL-05:
+    name: no_param_tuning
+    description: "禁调参刷数（数字是什么就报什么）"
+  RL-06:
+    name: pipeline_correctness
+    description: "pipeline 正确性三原则不可违反"
+  RL-07:
+    name: no_proto_modification
+    description: "禁改 proto 定义"
+  RL-08:
+    name: evidence_dir_gitignored
+    description: "证据目录不进版本库"
+  RL-09:
+    name: script_judged
+    description: "判定由脚本产出禁自评"
+  RL-10:
+    name: debt_expiry_redline
+    description: "挂账到期未清 = 红线违反"
+
+timebox:
+  duration: 6h
+  on_expire: stop_and_hand_over
+  description: "实现+执行 ≤ 6 小时，到点停手交数据"
+
+evidence_schema:
+  scenario_result:
+    required_fields:
+      - scenario_id
+      - scenario_type
+      - timeline
+      - election_metrics
+      - reject_metrics
+      - survival_metrics
+      - split_brain_metrics
+      - log_metrics
+      - status
+      - evidence_path
+    optional_fields:
+      - mismatched_entries
+      - entry_snapshots

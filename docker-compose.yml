@@ -1,0 +1,170 @@
+# =========================================================================
+# RaftKV 确定性管控中枢 — 5 节点 Raft 集群 + 前端大屏
+#
+# 关键规则:
+#   1. PEERS 环境变量必须使用 Docker 容器名（如 raft-node-2:9501），
+#      不能使用 localhost —— 每个容器有独立的网络命名空间。
+#   2. 所有节点同时启动（Raft 选举要求多数节点同时在线），
+#      不要用 depends_on 限制启动顺序。
+#   3. 每个节点的 PEERS 列出除自己之外的所有其他节点。
+#
+# 端口映射:
+#   node-1: gRPC 9500:9500, HTTP 9000:9001
+#   node-2: gRPC 9501:9501, HTTP 9000:9002
+#   node-3: gRPC 9502:9502, HTTP 9000:9003
+#   node-4: gRPC 9604:9604, HTTP 9000:9104
+#   node-5: gRPC 9605:9605, HTTP 9000:9105
+#   前端:   HTTP 80:8096
+#
+# 重建并启动: docker-compose down && docker-compose up -d --build
+# 仅重建镜像: docker-compose build --no-cache
+# 查看日志:   docker-compose logs -f node-1
+# =========================================================================
+
+services:
+
+  # ==================== 前端大屏 (Nginx) ====================
+  frontend:
+    image: nginx:alpine
+    container_name: raftkv-frontend
+    restart: always
+    ports:
+      - "8096:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    networks:
+      - raftkv-net
+
+  # ==================== Raft 节点 1 ====================
+  node-1:
+    build: .
+    image: raftkv-gateway:latest
+    container_name: raft-node-1
+    restart: always
+    environment:
+      NODE_ID: node-1
+      GRPC_PORT: "9500"
+      HTTP_PORT: "9000"
+      # 双模式授权防线（2026-09-01 姜总裁决二）：closed=授权失败拒绝启动（出厂默认）
+      # 严禁改为 open，除非甲方已签署并生效《授权到期降级只读补充条款》
+      LICENSE_FAIL_MODE: "closed"
+      PEERS: node-2=raft-node-2:9501,node-3=raft-node-3:9502,node-4=raft-node-4:9604,node-5=raft-node-5:9605
+    ports:
+      - "9500:9500"
+      - "9001:9000"
+    networks:
+      - raftkv-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ==================== Raft 节点 2 ====================
+  node-2:
+    build: .
+    image: raftkv-gateway:latest
+    container_name: raft-node-2
+    restart: always
+    environment:
+      NODE_ID: node-2
+      GRPC_PORT: "9501"
+      HTTP_PORT: "9000"
+      # 双模式授权防线（2026-09-01 姜总裁决二）：closed=授权失败拒绝启动（出厂默认）
+      # 严禁改为 open，除非甲方已签署并生效《授权到期降级只读补充条款》
+      LICENSE_FAIL_MODE: "closed"
+      PEERS: node-1=raft-node-1:9500,node-3=raft-node-3:9502,node-4=raft-node-4:9604,node-5=raft-node-5:9605
+    ports:
+      - "9501:9501"
+      - "9002:9000"
+    networks:
+      - raftkv-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ==================== Raft 节点 3 ====================
+  node-3:
+    build: .
+    image: raftkv-gateway:latest
+    container_name: raft-node-3
+    restart: always
+    environment:
+      NODE_ID: node-3
+      GRPC_PORT: "9502"
+      HTTP_PORT: "9000"
+      # 双模式授权防线（2026-09-01 姜总裁决二）：closed=授权失败拒绝启动（出厂默认）
+      # 严禁改为 open，除非甲方已签署并生效《授权到期降级只读补充条款》
+      LICENSE_FAIL_MODE: "closed"
+      PEERS: node-1=raft-node-1:9500,node-2=raft-node-2:9501,node-4=raft-node-4:9604,node-5=raft-node-5:9605
+    ports:
+      - "9502:9502"
+      - "9003:9000"
+    networks:
+      - raftkv-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ==================== Raft 节点 4 ====================
+  node-4:
+    build: .
+    image: raftkv-gateway:latest
+    container_name: raft-node-4
+    restart: always
+    environment:
+      NODE_ID: node-4
+      GRPC_PORT: "9604"
+      HTTP_PORT: "9000"
+      # 双模式授权防线（2026-09-01 姜总裁决二）：closed=授权失败拒绝启动（出厂默认）
+      # 严禁改为 open，除非甲方已签署并生效《授权到期降级只读补充条款》
+      LICENSE_FAIL_MODE: "closed"
+      PEERS: node-1=raft-node-1:9500,node-2=raft-node-2:9501,node-3=raft-node-3:9502,node-5=raft-node-5:9605
+    ports:
+      - "9604:9604"
+      - "9104:9000"
+    networks:
+      - raftkv-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+  # ==================== Raft 节点 5 ====================
+  node-5:
+    build: .
+    image: raftkv-gateway:latest
+    container_name: raft-node-5
+    restart: always
+    environment:
+      NODE_ID: node-5
+      GRPC_PORT: "9605"
+      HTTP_PORT: "9000"
+      # 双模式授权防线（2026-09-01 姜总裁决二）：closed=授权失败拒绝启动（出厂默认）
+      # 严禁改为 open，除非甲方已签署并生效《授权到期降级只读补充条款》
+      LICENSE_FAIL_MODE: "closed"
+      PEERS: node-1=raft-node-1:9500,node-2=raft-node-2:9501,node-3=raft-node-3:9502,node-4=raft-node-4:9604
+    ports:
+      - "9605:9605"
+      - "9105:9000"
+    networks:
+      - raftkv-net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+
+networks:
+  raftkv-net:
+    driver: bridge

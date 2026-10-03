@@ -1,0 +1,70 @@
+# === .dockerignore ===
+# 与.gitignore排除项对齐 + 额外排除.git/和.codegraph/
+
+# Git/索引目录
+.git/
+.codegraph/
+
+# WAL文件
+*.wal
+pkg/integration-test/integration_test.wal
+
+# 编译产物
+*.exe
+raftkv-v2.3-linux-arm64
+raftkv-v2.4-linux-arm64
+raftkv_gateway_arm64
+raftkv_gateway_arm64_final
+raftkv_gateway_linux_arm64
+gateway_cluster
+gateway-arm64
+gateway_arm64_final
+gateway_v22s_arm64_fixed
+v24_gateway_amd64
+v24_writetest_amd64
+demo_gateway
+diag_tool_arm64
+health_checker_arm64
+write_tester_arm64
+
+cmd/chaos_sink_test/chaos_sink_test.exe
+cmd/local_sink_test/local_sink_test.exe
+cmd/load_tester/load_tester.exe
+cmd/load_tester/load_tester_arm64
+cmd/demo_gateway/demo_gateway
+
+pkg/raft-module/*.exe
+pkg/wal-sm4-module/*.exe
+pkg/supervisor-module/*.exe
+pkg/observability-module/*.exe
+pkg/pipeline-module/*.exe
+pkg/observability-module/cmd/observability-test/observability-test
+
+# 压缩包/归档
+*.tar
+*.zip
+RaftKV-三节点部署包.zip
+
+# 密钥/敏感
+license.key
+*.key
+
+# 备份文件
+*.bak
+*.bak_*
+
+# 日志/测试输出
+*.log
+dist_load_out.txt
+dist_loadtest_output.txt
+loadtest_15min.txt
+diag_report.pdf
+
+# IDE/工具目录
+.arts/
+.codeartsdoer/
+.devkit/
+
+# 无关内容
+鲲鹏物理机最终撤离证据/
+main,go,

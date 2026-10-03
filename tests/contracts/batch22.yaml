@@ -1,0 +1,216 @@
+# batch22 故障注入战役I修复 + 战役II预演 — 验收契约
+# 版本: v2.4-batch22-chaos1-fix
+# 关联: spec.md §5.3 F1-F5 / §6.1 YAML 数据约束 / §8 红线清单
+# 前身: batch21.yaml (F1 FAIL 6.895s, F3 FAIL 0%)
+
+contract:
+  name: batch22-chaos1-fix
+  version: "1.0"
+  description: "故障注入战役I修复：选举优化≤2s + /raft/entry端点 + 磁盘满预演"
+
+# 继承 batch21 F1-F5 作为回归基线
+acceptance_criteria:
+  F1:
+    name: election_completion_time
+    description: "[回归] 选举完成时间中位值 ≤ 5.0s"
+    metric: median_of_3
+    threshold: 5.0
+    unit: seconds
+    operator: "<="
+    scope: steady_scenarios
+    judgment: "取稳态场景 election completion_duration，3 次取中位，max(medians) ≤ 5s"
+
+  F2:
+    name: reject_rate
+    description: "[回归] 注入期间拒载率 ≤ 30%，恢复后拒载率 = 0"
+    during_injection:
+      threshold: 30.0
+      unit: percent
+      operator: "<="
+    after_recovery:
+      threshold: 0
+      unit: percent
+      operator: "=="
+    scope: all_scenarios
+    judgment: "注入期间 max(reject_rate) ≤ 30%，恢复后 all(post_recovery_reject_rate == 0)"
+
+  F3:
+    name: confirmed_write_survival
+    description: "[回归] 已确认写入存活率 = 100%"
+    metric: sampling_comparison
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    sample_count: 20
+    scope: all_scenarios
+    judgment: "min(survival_rate) == 100%，附 mismatched_entries 详情"
+
+  F4:
+    name: no_split_brain
+    description: "[回归] 任意时刻最大并发 leader 数 ≤ 1"
+    metric: max_concurrent_leaders
+    threshold: 1
+    operator: "<="
+    scope: all_scenarios
+    detection_window: 5s
+    poll_interval: 50ms
+    judgment: "max(max_concurrent=leaders) ≤ 1"
+
+  F5:
+    name: structured_log_complete
+    description: "[回归] 结构化日志完整且可回放"
+    metrics:
+      timeline_complete: true
+      replayable: true
+    scope: all_scenarios
+    judgment: "all(timeline_complete) and all(replayable)"
+
+# batch22 新增验收项
+  E1:
+    name: election_optimization
+    description: "选举优化：稳态 3 次取中位 ≤ 2.0s"
+    metric: median_of_3
+    threshold: 2.0
+    unit: seconds
+    operator: "<="
+    scope: steady_scenarios
+    judgment: "取稳态场景 election completion_duration 排序后取中间 3 个的中位 ≤ 2s"
+    improvement: "batch21 F1=6.895s → batch22 E1 ≤ 2.0s"
+
+  E2:
+    name: no_split_brain_regression
+    description: "脑裂检测：max_concurrent_leaders ≤ 1"
+    metric: max_concurrent_leaders
+    threshold: 1
+    operator: "<="
+    scope: all_scenarios
+    judgment: "max(max_concurrent_leaders) ≤ 1"
+
+  E3:
+    name: reject_rate_under_load
+    description: "压测下拒载率 ≤ 30%"
+    metric: max_reject_rate
+    threshold: 30.0
+    unit: percent
+    operator: "<="
+    scope: all_scenarios
+    judgment: "max(reject_rate) ≤ 30%"
+
+  S1:
+    name: survival_rate_100
+    description: "已确认写入存活率 = 100%（/raft/entry 端点验证）"
+    metric: min_survival_rate
+    threshold: 100.0
+    unit: percent
+    operator: "=="
+    sample_count: 20
+    scope: all_scenarios
+    judgment: "min(survival_rate) == 100% 且 min(sampled_entries_count) > 0"
+    fix: "batch21 F3=0% → batch22 S1=100%（新增 /raft/entry 端点）"
+
+  S2:
+    name: entry_endpoint_available
+    description: "/raft/entry 端点可用：所有场景 sampled_entries_count > 0"
+    metric: min_sampled_count
+    threshold: 1
+    operator: ">="
+    scope: all_scenarios
+    judgment: "min(sampled_entries_count) >= 1"
+
+scenario_matrix:
+  steady_kill_leader:
+    count: 10
+    description: "稳态下 kill leader，等待选举完成后恢复"
+    steps:
+      - "查询当前 leader"
+      - "SnapshotConfirmedEntries(leaderID, 20)"
+      - "kill leader (docker kill --signal=9)"
+      - "等待选举完成（轮询 /raft/status）"
+      - "验证 F1-F5 + E1-E3 + S1-S2"
+      - "重启被 kill 节点 (docker start)"
+      - "等待节点健康"
+
+  under_load_kill_leader:
+    count: 10
+    description: "压测中 kill leader（goroutine 并发测量选举）"
+    concurrency: 128
+    steps:
+      - "查询当前 leader"
+      - "SnapshotConfirmedEntries(leaderID, 20)"
+      - "kill leader"
+      - "goroutine: CollectElectionTimeline(killTS, 15s)"
+      - "sleep 10s（模拟压测窗口）"
+      - "采集选举结果"
+      - "验证 F1-F5 + E1-E3 + S1-S2"
+      - "重启被 kill 节点"
+
+  cascading_kill:
+    count: 3
+    description: "连杀 leader + 新 leader"
+    steps:
+      - "查询当前 leader L1"
+      - "SnapshotConfirmedEntries(L1, 20)"
+      - "kill L1 → 等待 L2 选举"
+      - "kill L2 → 等待 L3 选举"
+      - "验证 F1-F5 + E1-E3 + S1-S2"
+      - "重启 L1 和 L2"
+
+  total_scenarios: 23
+
+red_lines:
+  RL-01:
+    name: no_remove_fsync
+    description: "禁去 fsync"
+  RL-02:
+    name: no_skip_quorum
+    description: "禁跳 quorum"
+  RL-03:
+    name: no_shorten_election_timeout
+    description: "禁缩选举超时（electionTimeout 不可调小至 rpcTimeout 以下）"
+    note: "batch22: 800ms > rpcTimeout(500ms) ✓ Fix#7 约束维持"
+  RL-04:
+    name: per_field_yaml_comparison
+    description: "PASS 判定须逐字段对照证据 JSON vs YAML 阈值"
+  RL-05:
+    name: no_param_tuning
+    description: "禁调参刷数"
+  RL-06:
+    name: pipeline_correctness
+    description: "pipeline 正确性三原则不可违反"
+  RL-07:
+    name: no_proto_modification
+    description: "禁改 proto 定义"
+  RL-08:
+    name: evidence_dir_gitignored
+    description: "证据目录不进版本库"
+  RL-09:
+    name: script_judged
+    description: "判定由脚本产出禁自评"
+  RL-10:
+    name: debt_expiry_redline
+    description: "挂账到期未清 = 红线违反"
+  RL-11:
+    name: no_build_artifacts_in_repo
+    description: "构建产物(.exe/二进制)禁止入库"
+
+timebox:
+  duration: 6h
+  on_expire: stop_and_hand_over
+  description: "实现+执行 ≤ 6 小时，到点停手交数据"
+
+evidence_schema:
+  scenario_result:
+    required_fields:
+      - scenario_id
+      - scenario_type
+      - timeline
+      - election_metrics
+      - reject_metrics
+      - survival_metrics
+      - split_brain_metrics
+      - log_metrics
+      - status
+      - evidence_path
+    optional_fields:
+      - mismatched_entries
+      - entry_snapshots
