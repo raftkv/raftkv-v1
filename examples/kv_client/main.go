@@ -51,35 +51,44 @@ func main() {
 		{"config:timeout", "30s"},
 	}
 
-	fmt.Println("\n[3] Writing key-value pairs...")
+	fmt.Println("\n[3] Proposing key-value pairs via /raft/propose...")
+	type proposeResp struct {
+		Success bool   `json:"success"`
+		Index   int64  `json:"index"`
+		Error   string `json:"error"`
+	}
+	var indices []int64
 	for _, entry := range entries {
 		body, _ := json.Marshal(entry)
-		resp, err := client.Post(leaderURL+"/raft/entry", "application/json", bytes.NewReader(body))
+		resp, err := client.Post(leaderURL+"/raft/propose", "application/json", bytes.NewReader(body))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  PUT %s failed: %v\n", entry.Key, err)
+			fmt.Fprintf(os.Stderr, "  POST %s failed: %v\n", entry.Key, err)
 			continue
 		}
 		respBody, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		if resp.StatusCode == 200 {
-			fmt.Printf("  PUT %s=%s -> OK (%s)\n", entry.Key, entry.Value, string(respBody))
+		var pr proposeResp
+		json.Unmarshal(respBody, &pr)
+		if resp.StatusCode == 200 && pr.Success {
+			fmt.Printf("  POST %s=%s -> index=%d\n", entry.Key, entry.Value, pr.Index)
+			indices = append(indices, pr.Index)
 		} else if resp.StatusCode == 503 {
-			fmt.Printf("  PUT %s=%s -> REJECTED (degraded mode, writes require license)\n", entry.Key, entry.Value)
+			fmt.Printf("  POST %s=%s -> REJECTED (degraded mode, writes require license)\n", entry.Key, entry.Value)
 		} else {
-			fmt.Printf("  PUT %s=%s -> HTTP %d (%s)\n", entry.Key, entry.Value, resp.StatusCode, string(respBody))
+			fmt.Printf("  POST %s=%s -> HTTP %d (%s)\n", entry.Key, entry.Value, resp.StatusCode, string(respBody))
 		}
 	}
 
-	fmt.Println("\n[4] Reading key-value pairs...")
-	for _, entry := range entries {
-		resp, err := client.Get(leaderURL + "/raft/get?key=" + entry.Key)
+	fmt.Println("\n[4] Reading entries via /raft/get?index=N...")
+	for i, idx := range indices {
+		resp, err := client.Get(fmt.Sprintf("%s/raft/get?index=%d", leaderURL, idx))
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "  GET %s failed: %v\n", entry.Key, err)
+			fmt.Fprintf(os.Stderr, "  GET index=%d failed: %v\n", idx, err)
 			continue
 		}
 		respBody, _ := io.ReadAll(resp.Body)
 		resp.Body.Close()
-		fmt.Printf("  GET %s -> HTTP %d: %s\n", entry.Key, resp.StatusCode, string(respBody))
+		fmt.Printf("  GET %s -> index=%d HTTP %d: %s\n", entries[i].Key, idx, resp.StatusCode, string(respBody))
 	}
 
 	fmt.Println("\n[5] Cluster members...")

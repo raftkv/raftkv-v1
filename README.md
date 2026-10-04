@@ -79,6 +79,10 @@ All measurements use a 5-node cluster with concurrency=128, write ratio=20%.
 - 53 snapshots taken in 1h, 0 WAL errors
 - Snapshot archive size: ~75MB (gzip compressed)
 
+### Fault Tolerance
+
+- **kill leader**: election recovery ≤ 7.6s, zero data loss (see verification report)
+
 ---
 
 ## Quick Start
@@ -134,12 +138,14 @@ docker compose -p deploy5 \
 ### Basic Operations
 
 ```bash
-# Put a key-value pair (must target the leader)
-curl -X PUT http://localhost:9001/raft/entry \
+# Propose a command (must target the leader)
+curl -X POST http://localhost:9001/raft/propose \
   -d '{"key":"hello","value":"world"}'
+# Response: {"success":true,"index":1}
 
-# Get a value
-curl http://localhost:9001/raft/get?key=hello
+# Read by log index
+curl http://localhost:9001/raft/get?index=1
+# Response: {"found":true,"index":1,"term":1,"command":"{\"key\":\"hello\",\"value\":\"world\"}"}
 
 # Check cluster health
 curl http://localhost:9001/health/live
@@ -187,9 +193,9 @@ export SM4_KEY="726166746b765f736d34746573743031"
 
 | Method | Path | Description |
 |--------|------|-------------|
-| `PUT` | `/raft/entry` | Propose a key-value entry (leader only) |
-| `GET` | `/raft/get?key=<key>` | Read a value (any node) |
-| `POST` | `/raft/propose` | Propose an entry with idempotency token |
+| `POST` | `/raft/propose` | Propose a command (leader only). Body: raw bytes. Returns `{"success":true,"index":N}`. Optional `?idem_token=<token>` for exactly-once semantics. |
+| `GET` | `/raft/get?index=<N>` | Read log entry at index (any node). Returns `{"found":true,"index":N,"term":T,"command":"..."}`. |
+| `GET` | `/raft/entry?index=<N>` | Read committed entry (batch22, F3 liveness verification). Returns `{"index":N,"term":T,"value":"...","commit_index":C}`. Supports `&count=<C>` for batch reads. |
 
 ### Raft Internals
 
@@ -304,7 +310,7 @@ A daemon management script is at [`raftkv_daemon.sh`](raftkv_daemon.sh).
 ```
 ┌─────────────────────────────────────────────────────┐
 │                    HTTP API Layer                     │
-│  /raft/entry  /raft/get  /cluster/*  /metrics  /health│
+│  /raft/propose  /raft/get  /cluster/*  /metrics  /health│
 ├─────────────────────────────────────────────────────┤
 │                   Auth Middleware                     │
 │              (mTLS + License Guard)                   │
