@@ -138,14 +138,23 @@ docker compose -p deploy5 \
 ### Basic Operations
 
 ```bash
+# Find the leader: query /raft/status on each node until you find "leader"
+curl http://localhost:9001/raft/status   # node-1 (HTTP port 9001)
+curl http://localhost:9002/raft/status   # node-2 (HTTP port 9002)
+# The leader's response contains "state":"Leader" — use that node's port below.
+# If node-1 is not leader, replace 9001 with the leader's port.
+
 # Propose a command (must target the leader)
 curl -X POST http://localhost:9001/raft/propose \
   -d '{"key":"hello","value":"world"}'
 # Response: {"success":true,"index":1}
 
-# Read by log index
+# Read by log index (any node, not just the leader)
 curl http://localhost:9001/raft/get?index=1
-# Response: {"found":true,"index":1,"term":1,"command":"{\"key\":\"hello\",\"value\":\"world\"}"}
+# Response: {"found":true,"index":1,"term":1,"command":"eyJrZXkiOiJoZWxsbyIsInZhbHVlIjoid29ybGQifQ=="}
+# The command field is Base64-encoded — decode to recover the original body:
+#   echo "eyJrZXkiOiJoZWxsbyIsInZhbHVlIjoid29ybGQifQ==" | base64 -d
+#   → {"key":"hello","value":"world"}
 
 # Check cluster health
 curl http://localhost:9001/health/live
@@ -154,6 +163,21 @@ curl http://localhost:9001/health/ready
 # View Raft status
 curl http://localhost:9001/raft/status
 ```
+
+> **Command field encoding**: The `/raft/propose` body is raw bytes. The
+> `command` field in the `/raft/get` response is always Base64-encoded
+> (Go `[]byte` JSON marshalling). To recover the original body, decode:
+>
+> ```bash
+> # Send raw bytes (including binary) directly as the body
+> curl -X POST http://localhost:9001/raft/propose --data-binary @file.bin
+> # Response: {"success":true,"index":2}
+>
+> # Read back — command is Base64 of the bytes you sent
+> curl http://localhost:9001/raft/get?index=2
+> # Response: {"found":true,"index":2,"term":1,"command":"<base64>"}
+> # Decode: echo "<base64>" | base64 -d > recovered.bin
+> ```
 
 ---
 
