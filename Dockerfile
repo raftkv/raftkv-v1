@@ -1,7 +1,7 @@
 # ---- Stage 1: Builder ----
 FROM golang:1.24-alpine AS builder
 
-ENV GOPROXY=https://proxy.golang.org,direct
+ENV GOPROXY=https://goproxy.cn,https://proxy.golang.org,direct
 ENV GO111MODULE=on
 
 WORKDIR /build
