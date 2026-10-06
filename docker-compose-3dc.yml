@@ -21,13 +21,14 @@ services:
 
   # ==================== DC1 — 機房1 ====================
   dc1-n1:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc1-n1
     restart: always
     environment:
       NODE_ID: dc1-n1
       GRPC_PORT: "9700"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9700:9700"
@@ -44,13 +45,14 @@ services:
       start_period: 15s
 
   dc1-n2:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc1-n2
     restart: always
     environment:
       NODE_ID: dc1-n2
       GRPC_PORT: "9701"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9701:9701"
@@ -67,13 +69,14 @@ services:
       start_period: 15s
 
   dc1-n3:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc1-n3
     restart: always
     environment:
       NODE_ID: dc1-n3
       GRPC_PORT: "9702"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9702:9702"
@@ -91,13 +94,14 @@ services:
 
   # ==================== DC2 — 機房2 ====================
   dc2-n1:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc2-n1
     restart: always
     environment:
       NODE_ID: dc2-n1
       GRPC_PORT: "9710"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9710:9710"
@@ -114,13 +118,14 @@ services:
       start_period: 15s
 
   dc2-n2:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc2-n2
     restart: always
     environment:
       NODE_ID: dc2-n2
       GRPC_PORT: "9711"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9711:9711"
@@ -137,13 +142,14 @@ services:
       start_period: 15s
 
   dc2-n3:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc2-n3
     restart: always
     environment:
       NODE_ID: dc2-n3
       GRPC_PORT: "9712"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9712:9712"
@@ -161,13 +167,14 @@ services:
 
   # ==================== DC3 — 機房3 ====================
   dc3-n1:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc3-n1
     restart: always
     environment:
       NODE_ID: dc3-n1
       GRPC_PORT: "9720"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n2=raftkv-dc3-n2:9721,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9720:9720"
@@ -184,13 +191,14 @@ services:
       start_period: 15s
 
   dc3-n2:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc3-n2
     restart: always
     environment:
       NODE_ID: dc3-n2
       GRPC_PORT: "9721"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n3=raftkv-dc3-n3:9722
     ports:
       - "9721:9721"
@@ -207,13 +215,14 @@ services:
       start_period: 15s
 
   dc3-n3:
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raftkv-dc3-n3
     restart: always
     environment:
       NODE_ID: dc3-n3
       GRPC_PORT: "9722"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: dc1-n1=raftkv-dc1-n1:9700,dc1-n2=raftkv-dc1-n2:9701,dc1-n3=raftkv-dc1-n3:9702,dc2-n1=raftkv-dc2-n1:9710,dc2-n2=raftkv-dc2-n2:9711,dc2-n3=raftkv-dc2-n3:9712,dc3-n1=raftkv-dc3-n1:9720,dc3-n2=raftkv-dc3-n2:9721
     ports:
       - "9722:9722"

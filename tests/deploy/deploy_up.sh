@@ -31,7 +31,7 @@ fi
 
 source "$ENV_FILE"
 
-IMAGE_NAME="${IMAGE_NAME:-raftkv:latest-knife}"
+IMAGE_NAME="${IMAGE_NAME:-raftkit-gateway:v1}"
 FP_ANCHOR="${FP_ANCHOR:-raftkv-v25-test}"
 GRPC_PORT="${GRPC_PORT:-9500}"
 HTTP_PORT="${HTTP_PORT:-9000}"

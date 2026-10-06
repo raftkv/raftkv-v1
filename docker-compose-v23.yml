@@ -1,6 +1,6 @@
 services:
   node-1:
-    image: raftkv-v23:latest
+    image: raftkit-gateway:v1
     restart: always
     cap_add: [NET_ADMIN]
     mem_limit: 512m
@@ -9,12 +9,13 @@ services:
       NODE_ID: node-1
       GRPC_PORT: "9700"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: node-2=node-2:9701,node-3=node-3:9702
     ports: ["9700:9700", "9710:9000"]
     networks: [v23-net]
 
   node-2:
-    image: raftkv-v23:latest
+    image: raftkit-gateway:v1
     restart: always
     cap_add: [NET_ADMIN]
     mem_limit: 512m
@@ -23,12 +24,13 @@ services:
       NODE_ID: node-2
       GRPC_PORT: "9701"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: node-1=node-1:9700,node-3=node-3:9702
     ports: ["9701:9701", "9711:9000"]
     networks: [v23-net]
 
   node-3:
-    image: raftkv-v23:latest
+    image: raftkit-gateway:v1
     restart: always
     cap_add: [NET_ADMIN]
     mem_limit: 512m
@@ -37,12 +39,13 @@ services:
       NODE_ID: node-3
       GRPC_PORT: "9702"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: node-1=node-1:9700,node-2=node-2:9701
     ports: ["9702:9702", "9712:9000"]
     networks: [v23-net]
 
   node-4:
-    image: raftkv-v23:latest
+    image: raftkit-gateway:v1
     restart: always
     cap_add: [NET_ADMIN]
     mem_limit: 512m
@@ -51,6 +54,7 @@ services:
       NODE_ID: node-4
       GRPC_PORT: "9703"
       HTTP_PORT: "9000"
+      WAL_PATH: "/tmp/raft.wal"
       PEERS: ""
     ports: ["9703:9703", "9713:9000"]
     networks: [v23-net]

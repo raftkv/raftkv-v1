@@ -307,14 +307,14 @@ go run ./cmd/chaos_injector -scenario composite_scenario.json
 
 ```bash
 # Build image
-docker build -t raftkv:latest .
+docker build -t raftkit-gateway:v1 .
 
 # Run single container
 docker run -d --name raft-node-1 \
   -p 9000:9000 -p 9500:9500 \
   -e NODE_ID=node-1 \
   -e SM4_KEY="your-16-byte-key" \
-  raftkv:latest
+  raftkit-gateway:v1
 ```
 
 ### 5-Node Docker Compose

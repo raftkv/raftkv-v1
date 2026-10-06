@@ -1,25 +1,9 @@
-# RaftKV Quickstart Deployment — 5-Node Cluster
-#
-# Simplified docker-compose for quick evaluation. Builds from source.
-# Uses LICENSE_FAIL_MODE=open (degraded read-only mode) for demo purposes.
-#
-# Usage:
-#   docker compose -f examples/docker-compose-quickstart.yml up -d
-#   go run examples/kv_client/main.go http://localhost:9001
-#
-# Note: In degraded mode, writes are rejected. To enable writes,
-# generate a license key using cmd/license-tool and mount it into
-# the containers, then set LICENSE_FAIL_MODE=closed.
-
 services:
   node-1:
-    build: ..
-    container_name: raft-node-1
-    ports:
-      - "9001:9000"
-      - "9501:9500"
+    image: raftkit-gateway:v1
+    container_name: raft-qs-1
     environment:
-      - SM4_KEY=726166746b765f736d34746573743031  # TEST KEY ONLY - do not use in production
+      - SM4_KEY=726166746b765f736d34746573743031
       - NODE_ID=node-1
       - GRPC_PORT=9500
       - HTTP_PORT=9000
@@ -29,7 +13,7 @@ services:
       - IDEM_TOKEN_CAPACITY=5
       - WAL_PATH=/tmp/raft.wal
     networks:
-      raftkv-quickstart:
+      qs-net:
         aliases:
           - node-1
     healthcheck:
@@ -40,13 +24,10 @@ services:
       start_period: 15s
 
   node-2:
-    build: ..
-    container_name: raft-node-2
-    ports:
-      - "9002:9000"
-      - "9502:9500"
+    image: raftkit-gateway:v1
+    container_name: raft-qs-2
     environment:
-      - SM4_KEY=726166746b765f736d34746573743031  # TEST KEY ONLY - do not use in production
+      - SM4_KEY=726166746b765f736d34746573743031
       - NODE_ID=node-2
       - GRPC_PORT=9500
       - HTTP_PORT=9000
@@ -56,7 +37,7 @@ services:
       - IDEM_TOKEN_CAPACITY=5
       - WAL_PATH=/tmp/raft.wal
     networks:
-      raftkv-quickstart:
+      qs-net:
         aliases:
           - node-2
     healthcheck:
@@ -67,13 +48,10 @@ services:
       start_period: 15s
 
   node-3:
-    build: ..
-    container_name: raft-node-3
-    ports:
-      - "9003:9000"
-      - "9503:9500"
+    image: raftkit-gateway:v1
+    container_name: raft-qs-3
     environment:
-      - SM4_KEY=726166746b765f736d34746573743031  # TEST KEY ONLY - do not use in production
+      - SM4_KEY=726166746b765f736d34746573743031
       - NODE_ID=node-3
       - GRPC_PORT=9500
       - HTTP_PORT=9000
@@ -83,7 +61,7 @@ services:
       - IDEM_TOKEN_CAPACITY=5
       - WAL_PATH=/tmp/raft.wal
     networks:
-      raftkv-quickstart:
+      qs-net:
         aliases:
           - node-3
     healthcheck:
@@ -94,13 +72,10 @@ services:
       start_period: 15s
 
   node-4:
-    build: ..
-    container_name: raft-node-4
-    ports:
-      - "9004:9000"
-      - "9504:9500"
+    image: raftkit-gateway:v1
+    container_name: raft-qs-4
     environment:
-      - SM4_KEY=726166746b765f736d34746573743031  # TEST KEY ONLY - do not use in production
+      - SM4_KEY=726166746b765f736d34746573743031
       - NODE_ID=node-4
       - GRPC_PORT=9500
       - HTTP_PORT=9000
@@ -110,7 +85,7 @@ services:
       - IDEM_TOKEN_CAPACITY=5
       - WAL_PATH=/tmp/raft.wal
     networks:
-      raftkv-quickstart:
+      qs-net:
         aliases:
           - node-4
     healthcheck:
@@ -121,13 +96,10 @@ services:
       start_period: 15s
 
   node-5:
-    build: ..
-    container_name: raft-node-5
-    ports:
-      - "9005:9000"
-      - "9505:9500"
+    image: raftkit-gateway:v1
+    container_name: raft-qs-5
     environment:
-      - SM4_KEY=726166746b765f736d34746573743031  # TEST KEY ONLY - do not use in production
+      - SM4_KEY=726166746b765f736d34746573743031
       - NODE_ID=node-5
       - GRPC_PORT=9500
       - HTTP_PORT=9000
@@ -137,7 +109,7 @@ services:
       - IDEM_TOKEN_CAPACITY=5
       - WAL_PATH=/tmp/raft.wal
     networks:
-      raftkv-quickstart:
+      qs-net:
         aliases:
           - node-5
     healthcheck:
@@ -148,5 +120,5 @@ services:
       start_period: 15s
 
 networks:
-  raftkv-quickstart:
+  qs-net:
     driver: bridge

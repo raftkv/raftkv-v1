@@ -5,7 +5,7 @@
 ## 集群部署
 
 5 节点 Docker Compose 部署:
-- 镜像: raftkv:latest
+- 镜像: raftkit-gateway:v1
 - 端口: 9001-9005 (HTTP), 9501-9505 (gRPC)
 - 网络: deploy5_raft-net
 

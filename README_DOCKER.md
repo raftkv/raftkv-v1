@@ -238,7 +238,7 @@ docker logs raftkv-frontend  # 检查 nginx 日志
 ```yaml
   node-4:
     build: .
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raft-node-4
     restart: always
     environment:
@@ -254,7 +254,7 @@ docker logs raftkv-frontend  # 检查 nginx 日志
 
   node-5:
     build: .
-    image: raftkv-gateway:latest
+    image: raftkit-gateway:v1
     container_name: raft-node-5
     restart: always
     environment:

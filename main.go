@@ -508,6 +508,17 @@ func main() {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
+		if dg, reason := IsDegradedMode(); dg {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"success":  false,
+				"error":    "降级只读模式，写入已被拒绝",
+				"reason":   reason,
+				"guidance": "请获取有效授权后以 LICENSE_FAIL_MODE=closed 模式运行。详见 README.md 授权文件生成章节。",
+			})
+			return
+		}
 		// batch17: 双层准入 — 信号量先判（约束在途并发 L）
 		if !inFlightLimiter.TryAcquire() {
 			triStats.IncShed()
