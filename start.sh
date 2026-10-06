@@ -1,12 +1,12 @@
 #!/bin/bash
-# RaftKV 确定性管控中枢 - 一键启动脚本
+# RaftKV 键值存储 - 一键启动脚本
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$SCRIPT_DIR"
 
 echo "══════════════════════════════════════════════"
-echo "  RaftKV 确定性管控中枢 - 启动"
+echo "  RaftKV 键值存储 - 启动"
 echo "══════════════════════════════════════════════"
 
 if [ ! -f "./gateway" ]; then

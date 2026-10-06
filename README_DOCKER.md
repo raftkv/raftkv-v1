@@ -1,4 +1,4 @@
-# RaftKV 确定性管控中枢 — Docker 部署与验证手册
+# RaftKV 键值存储 — Docker 部署与验证手册
 
 ---
 
@@ -92,7 +92,7 @@ curl http://localhost:9003/raft/stats
 http://localhost:8096
 ```
 
-你应该看到RaftKV 确定性管控中枢大屏，包含：
+你应该看到RaftKV 键值存储大屏，包含：
 - 左上：系统总览 KPI 指标
 - 左中：确定性引擎参数
 - 中上：7 步 Agent Pipeline

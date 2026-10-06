@@ -1,5 +1,5 @@
 =============================================================================
-Makefile — 分布式确定性管控中枢·微服务网关
+Makefile — 分布式键值存储·微服务网关
 =============================================================================
 RaftKV Deterministic Engine
 =============================================================================
@@ -71,7 +71,7 @@ GO := go GOFLAGS := -ldflags="$(LDFLAGS)"
 =============================================================================
 .DEFAULT_GOAL := help
 
-.PHONY: help help: ## 显示帮助信息 @echo "分布式确定性管控中枢·微服务网关 v$(VERSION)" @echo "" @echo "构建命令:" @echo " make build 编译二进制（本机架构）" @echo " make build-arm64 编译 ARM64 二进制（鲲鹏）" @echo " make build-linux 编译 Linux amd64 二进制" @echo "" @echo "运行命令:" @echo " make run 单节点运行（开发模式）" @echo " make test-cluster 单机 3 节点测试集群" @echo "" @echo "Docker 命令:" @echo " make docker-build 构建 Docker 镜像" @echo " make docker-up 启动 3 节点 Docker 集群" @echo " make docker-down 关闭 Docker 集群" @echo " make docker-logs 查看 Docker 集群日志" @echo "" @echo "其他:" @echo " make proto 生成 protobuf Go 代码" @echo " make clean 清理构建产物" @echo " make tidy 整理 Go 依赖"
+.PHONY: help help: ## 显示帮助信息 @echo "分布式键值存储·微服务网关 v$(VERSION)" @echo "" @echo "构建命令:" @echo " make build 编译二进制（本机架构）" @echo " make build-arm64 编译 ARM64 二进制（鲲鹏）" @echo " make build-linux 编译 Linux amd64 二进制" @echo "" @echo "运行命令:" @echo " make run 单节点运行（开发模式）" @echo " make test-cluster 单机 3 节点测试集群" @echo "" @echo "Docker 命令:" @echo " make docker-build 构建 Docker 镜像" @echo " make docker-up 启动 3 节点 Docker 集群" @echo " make docker-down 关闭 Docker 集群" @echo " make docker-logs 查看 Docker 集群日志" @echo "" @echo "其他:" @echo " make proto 生成 protobuf Go 代码" @echo " make clean 清理构建产物" @echo " make tidy 整理 Go 依赖"
 
 =============================================================================
 构建

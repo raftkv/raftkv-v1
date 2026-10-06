@@ -85,8 +85,8 @@ func main() {
 	peerList := envOr("PEERS", *peersRaw, "")
 
 	fmt.Println(strings.Repeat("═", 60))
-	fmt.Printf("  RaftKV 确定性管控中枢 (Go gRPC 微服务版)\n")
-	fmt.Printf("  双轨三总台五级联动分布式管控系统\n")
+	fmt.Printf("  RaftKV 键值存储 (Go gRPC 微服务版)\n")
+	fmt.Printf("  RaftKV 分布式一致性键值存储\n")
 	fmt.Printf("  版本: %s  构建: %s  提交: %s\n", Version, BuildTime, GitCommit)
 	fmt.Println(strings.Repeat("═", 60))
 	PrintFingerprint()

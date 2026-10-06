@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>RaftKV · 确定性管控中枢</title>
+<title>RaftKV · 键值存储</title>
 <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
 <style>
 /* ============================================================
-   RaftKV · 确定性管控中枢 — 基础骨架与CSS布局
+   RaftKV · 键值存储 — 基础骨架与CSS布局
    配色：虚空黑 + 确定性蓝(cy) + 精度金(gd) + 准确率紫(pr)
    6 面板布局：左2 + 中2 + 右2，上下错落，暗黑科技风
    响应式设计：大屏三列 / 中屏两列 / 小屏单列
@@ -2989,7 +2989,7 @@ function initDies() {
     SRaftState.dies.push(new Die(i));
   }
   // Seed initial events
-  addEvent('sys', 'RaftKV确定性管控中枢启动·' + SRaftState.dieCount + '个Die就绪', 'boost');
+  addEvent('sys', 'RaftKV键值存储启动·' + SRaftState.dieCount + '个Die就绪', 'boost');
   addEvent('sys', '确定性引擎: Temp=0·MoE=FIXED·FP64·Seed=0xRaftKV', 'precision');
   addEvent('sys', '7步Agent链路: Orchstrator→Planner→Decomposer→Executor→Verifier→Recovery→Finalizer', 'accuracy');
   // Seed SM3 hash chain with genesis record
