@@ -59,7 +59,7 @@ tests/evidence/
 | evidence入git | 441文件全量入git（含progress.log/裁决材料），换机clone后audit 6/6通过 |
 | C盘清理 | 释放 **42.24GB** |
 | push白名单 | run_pipeline.sh加ALLOWED_REMOTE + safe_push函数 |
-| 双机保护 | 本地裸仓库 V2.4_remote (D盘) + 换机验证 |
+| 双机保护 | 本地裸仓库 v1.0.0_remote (D盘) + 换机验证 |
 
 **C盘清理明细**:
 
@@ -143,7 +143,7 @@ git clone <bundle完整路径>
 ### 5.1 从bundle恢复仓库
 ```bash
 git clone "<BACKUP_DIR>/backup\v24-full-backup-20260907.bundle"
-# 或拷贝整个 V2.4_Performance_Sandbox 目录
+# 或拷贝整个 v1.0.0_Performance_Sandbox 目录
 ```
 
 ### 5.2 恢复Docker镜像

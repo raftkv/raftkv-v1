@@ -1,5 +1,5 @@
 # regression.yaml — 回归门契约
-# 版本: v2.4-batch29-governance4
+# 版本: v1.0.0-batch29-governance4
 # 用途: 每批先跑回归门再跑本批门，收编各批已达成核心线 10 条
 # batch28: 每条线显式声明判定统计量（stat: median/max/min/count），verdict 按线定义执行
 # batch28: 追加 REG-9 分区安全不变量（战役III NP-1~5 全 PASS）

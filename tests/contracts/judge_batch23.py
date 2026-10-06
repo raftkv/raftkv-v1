@@ -3,7 +3,7 @@
 
 用法: python judge_batch23.py --contract tests/contracts/batch23.yaml --evidence-dir tests/evidence/d3-batch23 --output tests/evidence/d3-batch23/verdict.json
 
-v2.4-batch27: verdict 判定改为引用 regression.yaml 线 ID，删除硬编码阈值。
+v1.0.0-batch27: verdict 判定改为引用 regression.yaml 线 ID，删除硬编码阈值。
 裁决状态引用 decisions.md 晨审判决落款作为裁决源。
 """
 

@@ -1,6 +1,6 @@
-# ROADMAP.md — V2.4 后续路线图
+# ROADMAP.md — v1.0.0 后续路线图
 
-> 版本: v2.4-post-batch26
+> 版本: v1.0.0-post-batch26
 > 日期: 2026-09-13
 > 状态: **待晨批裁决**
 

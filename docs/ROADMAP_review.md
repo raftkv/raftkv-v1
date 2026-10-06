@@ -1,8 +1,8 @@
-# ROADMAP 晨审批阅包 — V2.4 后续'路线图复核
+# ROADMAP 晨审批阅包 — v1.0.0 后续'路线图复核
 
-> 版本: v2.4-batch29-review
+> 版本: v1.0.0-batch29-review
 > 日期: 2026-09-14
-> 来源: docs/ROADMAP.md (v2.4-post-batch26)
+> 来源: docs/ROADMAP.md (v1.0.0-post-batch26)
 > 用途: 晨审逐方向核对现状，补全 quorumbench 侧状态
 
 ---

@@ -60,7 +60,7 @@ func main() {
 	term := flag.Int("term", 1, "当前term")
 	flag.Parse()
 
-	fmt.Printf("=== V2.4 gRPC写入测试 (target=%s, total=%d, concurrency=%d, leader=%s, term=%d) ===\n", *target, *total, *concurrency, *leaderID, *term)
+	fmt.Printf("=== v1.0.0 gRPC写入测试 (target=%s, total=%d, concurrency=%d, leader=%s, term=%d) ===\n", *target, *total, *concurrency, *leaderID, *term)
 	fmt.Printf("开始: %s\n", time.Now().Format("2006-01-02 15:04:05"))
 
 	conn, err := grpc.NewClient(*target, grpc.WithTransportCredentials(insecure.NewCredentials()))

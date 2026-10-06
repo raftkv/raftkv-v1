@@ -1,6 +1,6 @@
-# 性能战役最终报告 — V2.4 Performance Campaign Final
+# 性能战役最终报告 — v1.0.0 Performance Campaign Final
 
-> 版本: v2.4-post-batch26
+> 版本: v1.0.0-post-batch26
 > 日期: 2026-09-13
 > 状态: **闭案，性能数字冻结**
 > 闭案人: D3-batch26 自动执行

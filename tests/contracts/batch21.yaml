@@ -1,5 +1,5 @@
 # batch21 故障注入战役 I — 验收契约
-# 版本: v2.4-batch21-chaos1
+# 版本: v1.0.0-batch21-chaos1
 # 关联: spec.md §5.3 F1-F5 / §6.1 YAML 数据约束 / §8 红线清单
 
 contract:

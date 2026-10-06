@@ -1,5 +1,5 @@
 # batch22 故障注入战役I修复 + 战役II预演 — 验收契约
-# 版本: v2.4-batch22-chaos1-fix
+# 版本: v1.0.0-batch22-chaos1-fix
 # 关联: spec.md §5.3 F1-F5 / §6.1 YAML 数据约束 / §8 红线清单
 # 前身: batch21.yaml (F1 FAIL 6.895s, F3 FAIL 0%)
 

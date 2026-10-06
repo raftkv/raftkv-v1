@@ -1,5 +1,5 @@
 // =========================================================================
-// RaftKV V2.3 — Raft Joint Consensus 动态成员变更
+// RaftKV  — Raft Joint Consensus 动态成员变更
 //
 // 实现原理（单节点变更法，Diego Ongaro 博士论文 §4.3）：
 //   1. C_old → C_old,new → C_new 三阶段变更
@@ -227,10 +227,10 @@ func (rn *RaftNode) AddNode(nodeID, address string) error {
 		Index:   newIdx,
 		Term:    rn.term,
 		Command: addCmd,
-		// V2.5.1: 国密 SM3 链式防篡改摘要（真实计算，修复 V2.5.0 透传断层）
+		// : 国密 SM3 链式防篡改摘要（真实计算，修复  透传断层）
 		SM3Hash: ComputeEntrySM3(PrevEntryHash(rn.logs, newIdx), rn.term, newIdx, addCmd),
 	})
-	rn.nextIdx[nodeID] = 1 // V2.3: 新节点从头接收所有日志（含配置条目）
+	rn.nextIdx[nodeID] = 1 // : 新节点从头接收所有日志（含配置条目）
 	rn.matchIdx[nodeID] = 0
 	rn.logf("[raft/%s] [membership] AddNode: %s @ %s, 配置条目 index=%d, C_old=%v → C_new=%v",
 		rn.id, nodeID, address, newIdx, oldPeers, newPeers)
@@ -281,7 +281,7 @@ func (rn *RaftNode) RemoveNode(nodeID string) error {
 		Index:   newIdx,
 		Term:    rn.term,
 		Command: rmCmd,
-		// V2.5.1: 国密 SM3 链式防篡改摘要（真实计算，修复 V2.5.0 透传断层）
+		// : 国密 SM3 链式防篡改摘要（真实计算，修复  透传断层）
 		SM3Hash: ComputeEntrySM3(PrevEntryHash(rn.logs, newIdx), rn.term, newIdx, rmCmd),
 	})
 	rn.logf("[raft/%s] [membership] RemoveNode: %s, 配置条目 index=%d, C_old=%v → C_new=%v",

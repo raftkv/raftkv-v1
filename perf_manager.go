@@ -35,7 +35,7 @@ func NewV24PerfManager() *V24PerfManager {
 	}
 	cw, err := NewCompactWAL(walPath)
 	if err != nil {
-		fmt.Printf("[V2.4] CompactWAL初始化失败: %v\n", err)
+		fmt.Printf("[Perf] CompactWAL初始化失败: %v\n", err)
 	} else {
 		pm.compactWAL = cw
 	}
@@ -45,7 +45,7 @@ func NewV24PerfManager() *V24PerfManager {
 	maxMem := int64(512)
 	pm.rateLimit = NewRateLimiter(maxMem)
 
-	fmt.Println("[V2.4] 性能优化管理器已启用:")
+	fmt.Println("[Perf] 性能优化管理器已启用:")
 	fmt.Printf("  MultiGroup: %d组\n", groupCount)
 	fmt.Println("  BatchPipeline: 批量=1000 等待=10ms")
 	fmt.Println("  CompactWAL: 连续Term/Index压缩")
@@ -57,10 +57,10 @@ func NewV24PerfManager() *V24PerfManager {
 
 func (pm *V24PerfManager) Stats() string {
 	if !pm.enabled {
-		return "V2.4性能优化: 未启用"
+		return "性能优化: 未启用"
 	}
 	var sb strings.Builder
-	sb.WriteString("=== V2.4 性能优化统计 ===\n")
+	sb.WriteString("=== 性能优化统计 ===\n")
 	if pm.multiGroup != nil {
 		sb.WriteString(pm.multiGroup.Stats())
 	}
@@ -91,5 +91,5 @@ func (pm *V24PerfManager) Shutdown() {
 	if pm.compactWAL != nil {
 		pm.compactWAL.Close()
 	}
-	fmt.Println("[V2.4] 性能优化管理器已关闭")
+	fmt.Println("[Perf] 性能优化管理器已关闭")
 }

@@ -1,5 +1,5 @@
 #!/bin/bash
-# RaftKV V2.2-S mTLS 证书生成脚本（红线2：部署前必须先执行 bash gen_certs.sh）
+# RaftKV mTLS 证书生成脚本（红线2：部署前必须先执行 bash gen_certs.sh）
 set -euo pipefail
 CERT_DIR="${CERT_DIR:-./certs}"
 NODES="${NODES:-node-1 node-2 node-3 node-4 node-5}"

@@ -1,6 +1,6 @@
 # RaftKV — 确定性共识引擎
 
-> V2.4 Performance Sandbox
+> v1.0.0 Performance Sandbox
 > 日期: 2026-09-13
 
 ## 概览

@@ -1,7 +1,7 @@
-// sm3_integrity.go — Raft 日志国密 SM3 防篡改链（V2.5.1 真实启用）
+// sm3_integrity.go — Raft 日志国密 SM3 防篡改链（ 真实启用）
 //
 // 【修复背景】
-// V2.5.0 存在功能断层：RaftLog 结构体虽已声明 SM3Hash 字段，但全库 3 处日志
+//  存在功能断层：RaftLog 结构体虽已声明 SM3Hash 字段，但全库 3 处日志
 // 构造点（raft.go 跟随者追加、membership.go 成员新增/移除）均只做透传、从未
 // 计算，且 InitAdapters 无任何调用者，导致 gmsm/sm3 被链接器整块裁剪，
 // 交付二进制中 SM3 算法符号命中数为 0 —— 国密防篡改声称名存实亡。

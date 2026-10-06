@@ -109,7 +109,7 @@ func isAllZero(b []byte) bool {
 }
 
 // TestUnifiedStateMachineDefaultHasher 修复验证：
-// V2.5.0 中 hasher 为 nil 会导致 Apply 静默跳过校验；V2.5.1 必须注入国密实现。
+//  中 hasher 为 nil 会导致 Apply 静默跳过校验； 必须注入国密实现。
 func TestUnifiedStateMachineDefaultHasher(t *testing.T) {
 	sm := NewUnifiedStateMachine(nil)
 	if sm.SM3Hasher == nil {
@@ -170,7 +170,7 @@ func TestStateMachineApplyTamperRejected(t *testing.T) {
 }
 
 // TestInitAdaptersInjectsSM3 修复验证：
-// InitAdapters 此前全库零调用者且返回 nil 适配器；V2.5.1 必须真实装配。
+// InitAdapters 此前全库零调用者且返回 nil 适配器； 必须真实装配。
 func TestInitAdaptersInjectsSM3(t *testing.T) {
 	sm, k8s, agent := InitAdapters(nil, nil)
 	if sm == nil {
@@ -180,10 +180,10 @@ func TestInitAdaptersInjectsSM3(t *testing.T) {
 		t.Fatal("未注入 hasher 时应默认使用国密标准实现")
 	}
 	if k8s == nil {
-		t.Fatal("K8s 适配器不应为 nil（V2.5.0 恒返回 nil）")
+		t.Fatal("K8s 适配器不应为 nil（ 恒返回 nil）")
 	}
 	if agent == nil {
-		t.Fatal("Agent 适配器不应为 nil（V2.5.0 恒返回 nil）")
+		t.Fatal("Agent 适配器不应为 nil（ 恒返回 nil）")
 	}
 }
 

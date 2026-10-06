@@ -20,7 +20,7 @@ import (
 
 const licenseFile = "license.key"
 
-// FingerprintAnchorEnvKey 指纹稳定锚点环境变量键名（V2.5 商业版新增）。
+// FingerprintAnchorEnvKey 指纹稳定锚点环境变量键名（ 商业版新增）。
 //
 // 背景：容器化/云原生环境（Docker/K8s）无稳定 DMI 与 machine-id，且网卡 MAC
 // 在容器重启后会漂移，导致"指纹 = sha256(MAC|CPU|hostname)"每次重启都变化，

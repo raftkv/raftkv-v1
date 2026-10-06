@@ -142,7 +142,7 @@ func main() {
 
 	node := NewRaftNode(nodeID, peerAddrs, peerClients, nil)
 	node.logger = &stdLogger{prefix: fmt.Sprintf("[raft/%s]", nodeID)}
-	node.config.logger = node.logger // V2.3: 同步 logger 到集群配置
+	node.config.logger = node.logger // : 同步 logger 到集群配置
 
 	// R-04修复A: 设置重连回调 + 启动后台重连循环
 	// DNS别名丢失后gRPC "produced zero addresses"，需定期重建连接强制DNS重解析
@@ -150,7 +150,7 @@ func main() {
 	peerMgr.StartReconnectLoop()
 	defer peerMgr.StopReconnectLoop()
 
-	// ── 国密 SM3 防篡改链：标准自检与装配（V2.5.1 真实启用）────────────────
+	// ── 国密 SM3 防篡改链：标准自检与装配（ 真实启用）────────────────
 	// 算法本体：github.com/tjfoc/gmsm v1.4.1（清华大学开源国密库，非本项目自研）
 	// 标准依据：GB/T 32905-2016《信息安全技术 SM3 密码杂凑算法》
 	// 自研部分：链式防篡改集成层 + Raft 共识核心
@@ -692,7 +692,7 @@ func main() {
 		fmt.Fprintf(w, "# HELP raft_in_flight_utilization In-flight utilization ratio\n# TYPE raft_in_flight_utilization gauge\nraft_in_flight_utilization %.6f\n", inFlightLimiter.Utilization())
 	}))
 
-	// V2.3: 动态成员变更 HTTP 端点
+	// : 动态成员变更 HTTP 端点
 	httpMux.HandleFunc("/cluster/add", HandleAddNode(node))
 	httpMux.HandleFunc("/cluster/remove", HandleRemoveNode(node))
 	httpMux.HandleFunc("/cluster/members", HandleClusterMembers(node))

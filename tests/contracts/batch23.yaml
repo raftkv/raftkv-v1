@@ -1,5 +1,5 @@
 # batch23 pre-vote 防选票分裂 + 磁盘满故障注入 — 验收契约
-# 版本: v2.4-batch23-prevote-diskfull
+# 版本: v1.0.0-batch23-prevote-diskfull
 # 关联: spec.md §5.1 pre-vote / §5.2 磁盘满 / §6 证据数据约束 / §8 红线清单
 # 前身: batch22.yaml (E1=1.6003s, E2=1, E3=20%, S1=100%, S2=20, F1-F5 全 PASS)
 

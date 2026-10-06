@@ -25,7 +25,7 @@ What actually happened.
 
 ## Environment
 
-- RaftKV version: (e.g., v0.5.0)
+- RaftKV version: (e.g., v1.0.0)
 - Go version:
 - OS:
 - Deployment: (single node / 3-node / 5-node Docker Compose)

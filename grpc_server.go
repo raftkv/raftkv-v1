@@ -378,7 +378,7 @@ func (m *PeerClientManager) Peers() []string {
 	return ids
 }
 
-// V2.3: AddPeer 动态添加 peer 连接
+// : AddPeer 动态添加 peer 连接
 func (m *PeerClientManager) AddPeer(peerID, addr string) error {
 	m.mu.Lock()
 	m.address[peerID] = addr
@@ -387,7 +387,7 @@ func (m *PeerClientManager) AddPeer(peerID, addr string) error {
 	return err
 }
 
-// V2.3: RemovePeer 动态移除 peer 连接
+// : RemovePeer 动态移除 peer 连接
 func (m *PeerClientManager) RemovePeer(peerID string) {
 	m.mu.Lock()
 	defer m.mu.Unlock()

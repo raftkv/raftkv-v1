@@ -183,7 +183,7 @@ func (es *EncryptedStorage) ReplayAll() ([]RaftLog, error) {
 
 // Snapshot 创建 gzip 压缩快照并重置 WAL
 //
-// V2.5-batch7 流式快照：全链路固定 64KB 缓冲，峰值内存与快照总量无关。
+//  流式快照：全链路固定 64KB 缓冲，峰值内存与快照总量无关。
 // 弃用 io.ReadAll（batch6 根因：占 heap 增长 72.95%），
 // 弃用 json.Marshal(newLogs) 全量序列化，
 // 弃用 bytes.Buffer 全量压缩。

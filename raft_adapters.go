@@ -193,8 +193,8 @@ type UnifiedStateMachine struct {
 
 // NewUnifiedStateMachine 创建统一状态机
 //
-// V2.5.1 修复：hasher 为 nil 时默认注入国密标准实现（tjfoc/gmsm v1.4.1），
-// 彻底消除 V2.5.0 中「SM3Hasher 悬空 nil → Apply 静默跳过校验」的功能断层。
+//  修复：hasher 为 nil 时默认注入国密标准实现（tjfoc/gmsm v1.4.1），
+// 彻底消除  中「SM3Hasher 悬空 nil → Apply 静默跳过校验」的功能断层。
 func NewUnifiedStateMachine(hasher SM3Hasher) *UnifiedStateMachine {
 	if hasher == nil {
 		hasher = NewStandardSM3()
@@ -220,11 +220,11 @@ func (sm *UnifiedStateMachine) Apply(commandBytes []byte) error {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 
-	// 校验 SM3 国密哈希链（V2.5.1：强制生效）
+	// 校验 SM3 国密哈希链（：强制生效）
 	//
-	// V2.5.0 缺陷：此处曾以 `if sm.SM3Hasher != nil` 包裹，而 hasher 实际恒为 nil，
+	//  缺陷：此处曾以 `if sm.SM3Hasher != nil` 包裹，而 hasher 实际恒为 nil，
 	// 导致防篡改校验被静默跳过；且校验失败仅打印日志后继续 apply，形同虚设。
-	// V2.5.1 修复：删除无效 nil 分支，校验无条件执行；失败即中止 apply 并返回错误。
+	//  修复：删除无效 nil 分支，校验无条件执行；失败即中止 apply 并返回错误。
 	if len(cmd.SM3Hash) > 0 && len(cmd.PrevSM3Hash) > 0 {
 		recomputed := sm.recomputeHash(cmd)
 		if !bytesEqual(recomputed, cmd.SM3Hash) {
@@ -1298,7 +1298,7 @@ func bytesEqual(a, b []byte) bool {
 //	}
 // RaftNodeProposer 将 *RaftNode 适配为 RaftProposer 接口。
 //
-// V2.5.1 修复：该适配器此前仅存在于注释示例中，从未实现，
+//  修复：该适配器此前仅存在于注释示例中，从未实现，
 // 是 InitAdapters 长期无法连通的直接原因之一。
 type RaftNodeProposer struct {
 	node *RaftNode
@@ -1344,27 +1344,27 @@ func (p *RaftNodeProposer) Stats() map[string]interface{} {
 
 // Propose 向 Raft 集群提案一条命令。
 //
-// 已知架构缺口（V2.5.1 如实标注，未做掩饰性包装）：
+// 已知架构缺口（ 如实标注，未做掩饰性包装）：
 // RaftNode 当前未暴露任何提案（写入）接口——gRPC 服务仅提供 RequestVote 与
 // AppendEntries 两个 RPC，Leader 侧唯一的日志写入路径为 membership.go 的成员
 // 变更。因此本方法暂无法实现真实提案，明确返回错误而非静默返回 false。
 // 补齐写入路径属架构级变更，须经架构裁决后实施。
 func (p *RaftNodeProposer) Propose(command []byte) (bool, error) {
 	return false, fmt.Errorf(
-		"RaftNode 未暴露提案接口：V2.5.1 写入路径尚未实现（gRPC 仅提供 RequestVote/AppendEntries），" +
+		"RaftNode 未暴露提案接口： 写入路径尚未实现（gRPC 仅提供 RequestVote/AppendEntries），" +
 			"补齐需架构裁决")
 }
 
 // ProposeAndWait 提案并等待共识完成。同 Propose，受写入路径缺失约束。
 func (p *RaftNodeProposer) ProposeAndWait(command []byte, timeout time.Duration) error {
 	return fmt.Errorf(
-		"RaftNode 未暴露提案接口：V2.5.1 写入路径尚未实现（gRPC 仅提供 RequestVote/AppendEntries），" +
+		"RaftNode 未暴露提案接口： 写入路径尚未实现（gRPC 仅提供 RequestVote/AppendEntries），" +
 			"补齐需架构裁决")
 }
 
 // InitAdapters 初始化双适配层并绑定到 Raft 状态机。
 //
-// V2.5.1 修复：
+//  修复：
 //   - sm3Hasher 为 nil 时默认注入国密标准实现 NewStandardSM3()（此前导致整层
 //     SM3 校验因 nil 判定被静默跳过，且本函数全库零调用者，属死代码）
 //   - 真实构造 K8s/Agent 双适配层，替代原先的 nil 返回

@@ -95,7 +95,7 @@ type RaftNode struct {
 	stateChangeCh chan NodeState  // 状态变更通知
 	shutdownCh    chan struct{}   // 优雅关闭信号
 	shutdownOnce  sync.Once       // 确保只关闭一次
-	// --- V2.5.1 B1修复: 提交推进通知（Propose 去自旋等待）---
+	// ---  B1修复: 提交推进通知（Propose 去自旋等待）---
 	// commitIdx 前进时非阻塞投递，Propose 通过它等待提交，替代 20ms 自旋 + sendHeartbeats。
 	commitNotify chan struct{} // 容量 1，select+default 非阻塞投递
 
@@ -120,7 +120,7 @@ type RaftNode struct {
 	// true  = 日志已追上 Leader 的 commitIdx，可正常参与选举
 	logCaughtUp bool
 
-	// --- V2.3: 动态成员变更配置 ---
+	// --- : 动态成员变更配置 ---
 	config *ClusterConfig
 
 	// --- 最近收到 Leader 心跳时间（zero = 从未见过 Leader，全新集群） ---
@@ -308,7 +308,7 @@ func NewRaftNode(
 		replicateStop:            make(chan struct{}),
 	}
 
-	// V2.3: 初始化集群配置（自身 + 所有 peer）
+	// : 初始化集群配置（自身 + 所有 peer）
 	initialPeers := make([]string, 0, len(peerAddrs)+1)
 	initialPeers = append(initialPeers, id)
 	for pid := range peerAddrs {
@@ -1094,7 +1094,7 @@ func (rn *RaftNode) handleElectionTimeout() {
 		return
 	}
 
-	// V2.3: 无 peer 的节点不发起选举（等待被动态加入集群）
+	// : 无 peer 的节点不发起选举（等待被动态加入集群）
 	if len(rn.peers) == 0 {
 		rn.mu.Unlock()
 		rn.electionTimer.Reset(randomElectionTimeout() * 10)
@@ -1175,7 +1175,7 @@ func (rn *RaftNode) handleElectionTimeout() {
 // =========================================================================
 
 func (rn *RaftNode) requestVotes(term int64, peers []PeerInfo) {
-	votesNeeded := rn.config.quorumSize() // V2.3: 动态 quorum（支持联合共识）
+	votesNeeded := rn.config.quorumSize() // : 动态 quorum（支持联合共识）
 	votesGranted := int32(1)              // 自己投自己一票
 	peersCount := int32(len(peers))
 
@@ -1476,7 +1476,7 @@ func (rn *RaftNode) stepDown(higherTerm int64) {
 	}
 }
 
-// notifyCommit 非阻塞投递提交推进信号（V2.5.1 B1修复：Propose 去自旋用）
+// notifyCommit 非阻塞投递提交推进信号（ B1修复：Propose 去自旋用）
 // commitIdx 前进时调用；cap=1 + select+default 保证永不阻塞。
 func (rn *RaftNode) notifyCommit() {
 	select {
@@ -1536,7 +1536,7 @@ func (rn *RaftNode) sendHeartbeats() {
 	for k, v := range rn.nextIdx {
 		nextIdxSnapshot[k] = v
 	}
-	// V2.5.1 B2修复: 不再全量拷贝 rn.logs（消除 O(N) 每心跳拷贝风暴——E08 OOM 主犯）。
+	//  B2修复: 不再全量拷贝 rn.logs（消除 O(N) 每心跳拷贝风暴——E08 OOM 主犯）。
 	// 锁内为每个 peer 构造增量 entries 切片 + prevLog 快照，构造完立即解锁再发送（持锁不做网络 IO）。
 	logEnd := rn.lastLogIndexLocked()
 	type peerPlan struct {
@@ -1607,7 +1607,7 @@ func (rn *RaftNode) sendHeartbeats() {
 			prevLogIdx := plan.prevIdx
 			prevLogTerm := plan.prevTerm
 
-			// V2.5.1 B2: entries 已在锁内按 nextIdx 增量构造完毕，此处直接引用（消除 O(N) 拷贝）
+			//  B2: entries 已在锁内按 nextIdx 增量构造完毕，此处直接引用（消除 O(N) 拷贝）
 			entries := plan.entries
 
 			ctx, cancel := context.WithTimeout(context.Background(), rpcTimeout)
@@ -1635,7 +1635,7 @@ func (rn *RaftNode) sendHeartbeats() {
 				return
 			}
 
-			// V2.3: 根据响应更新 nextIdx / matchIdx
+			// : 根据响应更新 nextIdx / matchIdx
 			if resp.Success {
 				rn.mu.Lock()
 				if rn.state == StateLeader && atomic.LoadInt64(&rn.term) == term {
@@ -2046,7 +2046,7 @@ func (rn *RaftNode) Propose(command []byte) (int64, error) {
 
 	rn.logf("[raft/%s] Propose: index=%d term=%d cmd_len=%d", rn.id, index, entry.Term, len(command))
 
-	// V2.5.1 B1修复: Propose 去自旋——不再循环调 sendHeartbeats（消除写请求对心跳全量拷贝的放大，
+	//  B1修复: Propose 去自旋——不再循环调 sendHeartbeats（消除写请求对心跳全量拷贝的放大，
 	// E08 OOM 主放大器）。commit 由心跳 ticker(50ms) 的 sendHeartbeats 自然推进并 notifyCommit；
 	// 此处 select: notify 快速路径 + 50ms ticker 兜底（纯 O(1) commitIdx 检查，不触发任何拷贝），
 	// 1s timer 保留原 ~1s 等待上限语义。
@@ -2091,7 +2091,7 @@ func (rn *RaftNode) GetLog(index int64) (RaftLog, bool) {
 	return *e, true
 }
 
-// V2.3: 应用已提交的配置变更（调用前必须持有 rn.mu 写锁）
+// : 应用已提交的配置变更（调用前必须持有 rn.mu 写锁）
 func (rn *RaftNode) applyConfigChangesLocked(from, to int64) {
 	for i := from + 1; i <= to; i++ {
 		e := rn.logAtLocked(i)
@@ -2138,7 +2138,7 @@ func (rn *RaftNode) HandleRequestVote(
 		return resp, nil
 	}
 
-	// V2.3: 拒绝不在当前配置中的候选者的投票请求（防止被移除的节点扰乱集群）
+	// : 拒绝不在当前配置中的候选者的投票请求（防止被移除的节点扰乱集群）
 	if rn.config != nil {
 		allNodes := rn.config.allNodes()
 		if len(allNodes) > 1 && !stringInSlice(req.CandidateId, allNodes) {
@@ -2270,12 +2270,12 @@ func (rn *RaftNode) HandleAppendEntries(
 		rn.mu.Unlock()
 		return resp, nil
 	} else if req.Term == rn.term && rn.state == StateCandidate {
-		// V2.3: 同Term收到Leader有效心跳：Candidate回正为Follower
+		// : 同Term收到Leader有效心跳：Candidate回正为Follower
 		rn.state = StateFollower
 		rn.votedFor = ""
 	}
 
-	// V2.3: 拒绝不在当前配置中的 Leader（已被移除的节点不能继续当 Leader）
+	// : 拒绝不在当前配置中的 Leader（已被移除的节点不能继续当 Leader）
 	// 但新节点（配置只有自己）可以接受任何 Leader 的 AppendEntries
 	if rn.config != nil {
 		allNodes := rn.config.allNodes()
@@ -2302,7 +2302,7 @@ func (rn *RaftNode) HandleAppendEntries(
 			}
 			rn.lastApplied = rn.commitIdx
 			committedLogs = rn.collectCommittedLogs(oldCommit)
-			rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) // V2.3
+			rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) // 
 		}
 		// 日志追上 Leader 后，允许参与选举
 		if !rn.logCaughtUp && req.LeaderCommit > 0 && rn.lastLogIndexLocked() >= req.LeaderCommit {
@@ -2373,7 +2373,7 @@ func (rn *RaftNode) HandleAppendEntries(
 		}
 		rn.lastApplied = rn.commitIdx
 		committedLogs = rn.collectCommittedLogs(oldCommit)
-		rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) // V2.3
+		rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) // 
 	}
 
 	// 日志追上 Leader 后，允许参与选举

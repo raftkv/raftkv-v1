@@ -11,8 +11,8 @@ pkg/integration-test/integration_test.wal
 
 # 编译产物
 *.exe
-raftkv-v2.3-linux-arm64
-raftkv-v2.4-linux-arm64
+raftkv-v1.0.0-linux-arm64
+raftkv-v1.0.0-linux-arm64
 raftkv_gateway_arm64
 raftkv_gateway_arm64_final
 raftkv_gateway_linux_arm64
