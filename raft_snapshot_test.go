@@ -12,9 +12,9 @@ import (
 	"time"
 )
 
-// TestKnife3_ReloadFromSnapshot
-// 刀三验证: ReloadFromSnapshot 正确重载日志、更新 commitIdx/lastApplied/logStartIndex
-func TestKnife3_ReloadFromSnapshot(t *testing.T) {
+// TestSnapshot_ReloadFromSnapshot
+// 快照验证: ReloadFromSnapshot 正确重载日志、更新 commitIdx/lastApplied/logStartIndex
+func TestSnapshot_ReloadFromSnapshot(t *testing.T) {
 	rn := &RaftNode{
 		id:   "node-1",
 		logs: make([]RaftLog, 10),
@@ -53,9 +53,9 @@ func TestKnife3_ReloadFromSnapshot(t *testing.T) {
 	t.Log("✓ ReloadFromSnapshot: 5000 条日志, commitIdx=5000, lastApplied=5000, logStartIndex=1")
 }
 
-// TestKnife3_ReloadFromSnapshot_EmptyData
-// 刀三验证: 空快照数据（T035: 空快照合法，表示仅状态机状态无日志条目）
-func TestKnife3_ReloadFromSnapshot_EmptyData(t *testing.T) {
+// TestSnapshot_ReloadFromSnapshot_EmptyData
+// 快照验证: 空快照数据（T035: 空快照合法，表示仅状态机状态无日志条目）
+func TestSnapshot_ReloadFromSnapshot_EmptyData(t *testing.T) {
 	rn := &RaftNode{
 		id: "node-1",
 	}
@@ -70,9 +70,9 @@ func TestKnife3_ReloadFromSnapshot_EmptyData(t *testing.T) {
 	t.Log("✓ 空快照数据正确处理: logStartIndex=lastIncludedIndex+1")
 }
 
-// TestKnife3_ConcurrencyGuard
-// 刀三验证: 同一 follower 并发调用 SyncFollower，只有一个执行
-func TestKnife3_ConcurrencyGuard(t *testing.T) {
+// TestSnapshot_ConcurrencyGuard
+// 快照验证: 同一 follower 并发调用 SyncFollower，只有一个执行
+func TestSnapshot_ConcurrencyGuard(t *testing.T) {
 	rn := &RaftNode{
 		id:        "node-1",
 		state:     StateLeader,
@@ -117,9 +117,9 @@ func TestKnife3_ConcurrencyGuard(t *testing.T) {
 	t.Log("✓ 并发护栏: 10 个并发调用，仅 1 个执行")
 }
 
-// TestKnife3_SnapshotFallbackOnErrCompacted
-// 刀三验证: ErrCompacted 时触发快照兜底路径（HTTP POST）
-func TestKnife3_SnapshotFallbackOnErrCompacted(t *testing.T) {
+// TestSnapshot_SnapshotFallbackOnErrCompacted
+// 快照验证: ErrCompacted 时触发快照兜底路径（HTTP POST）
+func TestSnapshot_SnapshotFallbackOnErrCompacted(t *testing.T) {
 	// 构造 mock follower HTTP server
 	var receivedSnapshot bool
 	var receivedLastIdx int64
@@ -186,9 +186,9 @@ func TestKnife3_SnapshotFallbackOnErrCompacted(t *testing.T) {
 	t.Log("✓ ErrCompacted 触发快照兜底: follower 收到快照, lastIncludedIndex=5000")
 }
 
-// TestKnife3_SnapshotUpdatesNextIdxMatchIdx
-// 刀三验证: 快照安装成功后，leader 更新 nextIdx/matchIdx
-func TestKnife3_SnapshotUpdatesNextIdxMatchIdx(t *testing.T) {
+// TestSnapshot_SnapshotUpdatesNextIdxMatchIdx
+// 快照验证: 快照安装成功后，leader 更新 nextIdx/matchIdx
+func TestSnapshot_SnapshotUpdatesNextIdxMatchIdx(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"success":true}`))
@@ -243,9 +243,9 @@ func TestKnife3_SnapshotUpdatesNextIdxMatchIdx(t *testing.T) {
 	t.Log("✓ 快照安装成功: matchIdx=5000, nextIdx=5001, 降级标记已清除")
 }
 
-// TestKnife3_GetPeerHttpAddr
-// 刀三验证: GetPeerHttpAddr 正确返回 HTTP 地址
-func TestKnife3_GetPeerHttpAddr(t *testing.T) {
+// TestSnapshot_GetPeerHttpAddr
+// 快照验证: GetPeerHttpAddr 正确返回 HTTP 地址
+func TestSnapshot_GetPeerHttpAddr(t *testing.T) {
 	rn := &RaftNode{
 		peerHttpAddrs: map[string]string{
 			"node-2": "node-2:9000",
@@ -265,9 +265,9 @@ func TestKnife3_GetPeerHttpAddr(t *testing.T) {
 	t.Log("✓ GetPeerHttpAddr 正确返回 HTTP 地址")
 }
 
-// TestKnife3_CompressGzip
-// 刀三验证: compressGzip 辅助函数正确压缩数据
-func TestKnife3_CompressGzip(t *testing.T) {
+// TestSnapshot_CompressGzip
+// 快照验证: compressGzip 辅助函数正确压缩数据
+func TestSnapshot_CompressGzip(t *testing.T) {
 	original := []byte(`{"test":"data","number":42}`)
 	compressed, err := compressGzip(original)
 	if err != nil {

@@ -5,15 +5,15 @@
 #
 # === 与根目录docker-compose.yml的差异清单（D3-audit-reply闭环1）===
 # 本文件不是根compose的等价复制，以下为适配性改写（详见docs/D3-AUDIT-REPLY.md闭环1）：
-#   1. 镜像来源: image:${IMAGE_NAME}(ci-knife) vs build:. — ci-knife已验证含/health/live
+#   1. 镜像来源: image:${IMAGE_NAME}(ci-gate) vs build:. — ci-gate已验证含/health/live
 #   2. 端口策略: 全节点相同GRPC(9500)+无host暴露 vs 每节点不同端口+host映射 — D2部署模式
-#   3. SM4_KEY: 有 vs 无 — ci-knife为fail-closed需SM4_KEY做数据加密
-#   4. license挂载: 有 vs 无 — ci-knife需license.key做授权验证(fail-closed)
+#   3. SM4_KEY: 有 vs 无 — ci-gate为fail-closed需SM4_KEY做数据加密
+#   4. license挂载: 有 vs 无 — ci-gate需license.key做授权验证(fail-closed)
 #   5. frontend: 无 vs 有(nginx:alpine) — 冒烟测试聚焦Raft集群核心
 #   6. PEERS格式: 容器名+相同端口 vs 容器名+不同端口 — D2部署模式
-#   7. WAL卷: 有 vs 无 — ci-knife需WAL持久化目录
-#   8. HTTP_BIND: 有(0.0.0.0) vs 无 — ci-knife需显式绑定
-# 改写原因: 从build:.(旧版本镜像)迁移到ci-knife(fail-closed镜像)时必须补充运行时依赖
+#   7. WAL卷: 有 vs 无 — ci-gate需WAL持久化目录
+#   8. HTTP_BIND: 有(0.0.0.0) vs 无 — ci-gate需显式绑定
+# 改写原因: 从build:.(旧版本镜像)迁移到ci-gate(fail-closed镜像)时必须补充运行时依赖
 # SM4_KEY出处: tests/deploy/.sm4_key (openssl rand -hex 16生成, gitignored)
 # license出处: ${LICENSE_DIR}/node-{1..5}.key (RSA-2048商业授权, 各817字节)
 # =========================================================================

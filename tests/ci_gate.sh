@@ -1,8 +1,8 @@
 #!/bin/bash
-# knife_run.sh — CI门禁状态机（入口）
+# ci_gate.sh — CI门禁状态机（入口）
 #
-# 用法: ./tests/knife_run.sh <branch> <tag> [套件列表] [--no-tag]
-# 例:   ./tests/knife_run.sh fix/ci-knife v1.0.0-dev6 baseline,idem,wal_snap
+# 用法: ./tests/ci_gate.sh <branch> <tag> [套件列表] [--no-tag]
+# 例:   ./tests/ci_gate.sh fix/ci-gate v1.0.0-dev6 baseline,idem,wal_snap
 #
 # 流程: BUILD → SMOKE → VERIFY → GATE
 # 失败: ROLLBACK（git reset --hard 最近绿tag + 重建 + 冒烟 + FAIL报告 + exit 1）
@@ -15,8 +15,8 @@ REPO_DIR="$(cd "$TESTS_DIR/.." && pwd)"
 EVIDENCE_DIR="${TESTS_DIR}/evidence"
 
 # ── 参数解析 ──
-BRANCH="${1:?用法: knife_run.sh <branch> <tag> [suites] [--no-tag]}"
-TAG="${2:?用法: knife_run.sh <branch> <tag> [suites] [--no-tag]}"
+BRANCH="${1:?用法: ci_gate.sh <branch> <tag> [suites] [--no-tag]}"
+TAG="${2:?用法: ci_gate.sh <branch> <tag> [suites] [--no-tag]}"
 SUITES="${3:-baseline,idem,wal_snap,health}"
 NO_TAG=false
 if [ "${4:-}" = "--no-tag" ] || [ "${5:-}" = "--no-tag" ]; then
@@ -25,7 +25,7 @@ fi
 
 # ── 配置 ──
 LAST_GREEN_TAG="${LAST_GREEN_TAG:-v1.0.0-dev6}"
-IMAGE_NAME="raftkv:latest-knife"
+IMAGE_NAME="raftkv:latest-ci"
 ROLLBACK_IMAGE="raftkv:latest-rollback"
 LICENSE_DIR="${LICENSE_DIR:-/licenses}"
 FP_ANCHOR="${FP_ANCHOR:-raftkv-v25-test}"
@@ -35,7 +35,7 @@ RUN_EVIDENCE="${EVIDENCE_DIR}/${RUN_ID}"
 mkdir -p "$RUN_EVIDENCE"
 
 echo "╔═══════════════════════════════════════════════════════════╗"
-echo "║  knife_run CI门禁                                          ║"
+echo "║  ci_gate CI门禁                                          ║"
 echo "║  branch=$BRANCH  tag=$TAG  suites=$SUITES                  ║"
 echo "║  run_id=$RUN_ID                                            ║"
 echo "║  last_green=$LAST_GREEN_TAG  no_tag=$NO_TAG                ║"
@@ -45,9 +45,9 @@ echo "╚═══════════════════════�
 # ROLLBACK流程（严格）
 # ════════════════════════════════════════════════════════════
 export IMAGE_NAME LICENSE_DIR FP_ANCHOR EVIDENCE_DIR TESTS_DIR
-_knife_run_id="$RUN_ID"
+_ci_gate_id="$RUN_ID"
 source "${TESTS_DIR}/harness.sh"
-RUN_ID="$_knife_run_id"
+RUN_ID="$_ci_gate_id"
 do_rollback() {
     local fail_phase="$1"
     local fail_detail="$2"
@@ -60,7 +60,7 @@ do_rollback() {
     
     # 写FAIL报告
     cat > "${RUN_EVIDENCE}/FAIL" << EOF
-knife_run FAIL
+ci_gate FAIL
 phase: $fail_phase
 detail: $fail_detail
 run_id: $RUN_ID
@@ -207,7 +207,7 @@ fi
 
 # 写PASS报告
 cat > "${RUN_EVIDENCE}/PASS" << EOF
-knife_run PASS
+ci_gate PASS
 run_id: $RUN_ID
 branch: $BRANCH
 tag: $TAG
@@ -229,11 +229,11 @@ echo "╚═══════════════════════�
 if [ "$NO_TAG" = "false" ]; then
     cd "$REPO_DIR"
     echo "[gate] 创建tag $TAG..."
-    git tag -a "$TAG" -m "knife_run PASS: $TAG (suites=$SUITES, pass=$TOTAL_PASS)"
+    git tag -a "$TAG" -m "ci_gate PASS: $TAG (suites=$SUITES, pass=$TOTAL_PASS)"
     
     echo "[gate] merge --no-ff 回 v1.0-dev..."
     git checkout v1.0-dev 2>&1 | tee -a "${RUN_EVIDENCE}/gate.log"
-    git merge --no-ff "$BRANCH" -m "Merge $BRANCH: knife_run PASS ($TAG)" 2>&1 | tee -a "${RUN_EVIDENCE}/gate.log"
+    git merge --no-ff "$BRANCH" -m "Merge $BRANCH: ci_gate PASS ($TAG)" 2>&1 | tee -a "${RUN_EVIDENCE}/gate.log"
     
     echo "[gate] tag + merge 完成"
     git log --oneline -5 | tee -a "${RUN_EVIDENCE}/gate.log"
@@ -243,5 +243,5 @@ else
 fi
 
 echo ""
-echo "[knife_run] 完成. evidence: ${RUN_EVIDENCE}/"
+echo "[ci_gate] 完成. evidence: ${RUN_EVIDENCE}/"
 exit 0

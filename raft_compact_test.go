@@ -4,9 +4,9 @@ import (
 	"testing"
 )
 
-// TestKnife2_CompactLogs_SetsLogStartIndex
-// 刀二验证: CompactLogs 后 logStartIndex 正确设置为 upToIndex+1
-func TestKnife2_CompactLogs_SetsLogStartIndex(t *testing.T) {
+// TestCompact_CompactLogs_SetsLogStartIndex
+// 压缩验证: CompactLogs 后 logStartIndex 正确设置为 upToIndex+1
+func TestCompact_CompactLogs_SetsLogStartIndex(t *testing.T) {
 	rn := &RaftNode{
 		id:   "node-1",
 		logs: make([]RaftLog, 10000),
@@ -23,9 +23,9 @@ func TestKnife2_CompactLogs_SetsLogStartIndex(t *testing.T) {
 	t.Log("✓ CompactLogs(5000) 后 logStartIndex=5001")
 }
 
-// TestKnife2_GetLogEntries_ErrCompacted
-// 刀二验证: CompactLogs 后，GetLogEntries 对 < logStartIndex 的请求返回 ErrCompacted
-func TestKnife2_GetLogEntries_ErrCompacted(t *testing.T) {
+// TestCompact_GetLogEntries_ErrCompacted
+// 压缩验证: CompactLogs 后，GetLogEntries 对 < logStartIndex 的请求返回 ErrCompacted
+func TestCompact_GetLogEntries_ErrCompacted(t *testing.T) {
 	rn := &RaftNode{
 		id:   "node-1",
 		logs: make([]RaftLog, 10000),
@@ -54,9 +54,9 @@ func TestKnife2_GetLogEntries_ErrCompacted(t *testing.T) {
 	t.Log("✓ startIdx=5000 < logStartIndex=5001 → ErrCompacted")
 }
 
-// TestKnife2_GetLogEntries_AfterCompaction_StillWorks
-// 刀二验证: CompactLogs 后，GetLogEntries 对 >= logStartIndex 的请求正常工作
-func TestKnife2_GetLogEntries_AfterCompaction_StillWorks(t *testing.T) {
+// TestCompact_GetLogEntries_AfterCompaction_StillWorks
+// 压缩验证: CompactLogs 后，GetLogEntries 对 >= logStartIndex 的请求正常工作
+func TestCompact_GetLogEntries_AfterCompaction_StillWorks(t *testing.T) {
 	rn := &RaftNode{
 		id:            "node-1",
 		logs:          make([]RaftLog, 10000),
@@ -87,9 +87,9 @@ func TestKnife2_GetLogEntries_AfterCompaction_StillWorks(t *testing.T) {
 	t.Log("✓ startIdx=5001 >= logStartIndex=5001 → 正常返回，元数据和大字段均保留")
 }
 
-// TestKnife2_NoCompaction_LogStartIndexZero
-// 刀二验证: 未调用 CompactLogs 时，logStartIndex=0，GetLogEntries 正常工作
-func TestKnife2_NoCompaction_LogStartIndexZero(t *testing.T) {
+// TestCompact_NoCompaction_LogStartIndexZero
+// 压缩验证: 未调用 CompactLogs 时，logStartIndex=0，GetLogEntries 正常工作
+func TestCompact_NoCompaction_LogStartIndexZero(t *testing.T) {
 	rn := &RaftNode{
 		id:   "node-1",
 		logs: make([]RaftLog, 100),
@@ -112,9 +112,9 @@ func TestKnife2_NoCompaction_LogStartIndexZero(t *testing.T) {
 	t.Log("✓ 未压缩时 logStartIndex=0，GetLogEntries 正常工作")
 }
 
-// TestKnife2_SuccessiveCompaction
-// 刀二验证: 多次 CompactLogs 调用，logStartIndex 单调递增
-func TestKnife2_SuccessiveCompaction(t *testing.T) {
+// TestCompact_SuccessiveCompaction
+// 压缩验证: 多次 CompactLogs 调用，logStartIndex 单调递增
+func TestCompact_SuccessiveCompaction(t *testing.T) {
 	rn := &RaftNode{
 		id:   "node-1",
 		logs: make([]RaftLog, 10000),
@@ -150,9 +150,9 @@ func TestKnife2_SuccessiveCompaction(t *testing.T) {
 	t.Log("✓ 多次压缩 logStartIndex 单调递增: 3001 → 6001")
 }
 
-// TestKnife2_CompactZeroEntries_NoChange
-// 刀二验证: CompactLogs(0) 不压缩任何条目（logs 从 Index=1 开始），logStartIndex 不变
-func TestKnife2_CompactZeroEntries_NoChange(t *testing.T) {
+// TestCompact_CompactZeroEntries_NoChange
+// 压缩验证: CompactLogs(0) 不压缩任何条目（logs 从 Index=1 开始），logStartIndex 不变
+func TestCompact_CompactZeroEntries_NoChange(t *testing.T) {
 	rn := &RaftNode{
 		id:   "node-1",
 		logs: make([]RaftLog, 100),

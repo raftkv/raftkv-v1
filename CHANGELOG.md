@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Version badge** updated from v0.5.1 to v1.0.0
 - **Internal designations purged**: all internal project names and personal identifiers
   replaced with neutral terms
-- `deploy.env.example` image name updated from `raftkv-v26:ci-knife` to `raftkit-gateway:v1`
+- `deploy.env.example` image name updated from `raftkv-v26:ci-gate` to `raftkit-gateway:v1`
 - `deploy_up.sh` / `deploy_verify.sh` default image updated to `raftkit-gateway:v1`
 - **Fingerprint prefix updated** from the legacy internal anchor prefix to
   `raftkv-anchor:` in `GetMachineFingerprint()` — license files must be re-signed to bind

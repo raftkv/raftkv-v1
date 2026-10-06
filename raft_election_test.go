@@ -4,11 +4,11 @@ import (
 	"testing"
 )
 
-// TestKnife1_StartIdxNotOneAfterElection
-// 刀一验证: Leader当选后，IdentifyLaggingFollowers的StartIdx不应为1
+// TestElection_StartIdxNotOneAfterElection
+// 选举验证: Leader当选后，IdentifyLaggingFollowers的StartIdx不应为1
 // 旧代码: matchIdx=0 → StartIdx=1（全量重传）
 // 新代码: nextIdx=lastLogIdx+1 → StartIdx=lastLogIdx+1（乐观估计，无需同步）
-func TestKnife1_StartIdxNotOneAfterElection(t *testing.T) {
+func TestElection_StartIdxNotOneAfterElection(t *testing.T) {
 	rn := &RaftNode{
 		id:        "node-1",
 		state:     StateLeader,
@@ -42,9 +42,9 @@ func TestKnife1_StartIdxNotOneAfterElection(t *testing.T) {
 	t.Log("✓ Leader当选后nextIdx=lastLogIdx+1，gap=0，不触发全量重传")
 }
 
-// TestKnife1_FollowerBehind100Entries
-// 刀一验证: follower落后100条时，StartIdx应为合理值（lastLogIdx-99），而非1
-func TestKnife1_FollowerBehind100Entries(t *testing.T) {
+// TestElection_FollowerBehind100Entries
+// 选举验证: follower落后100条时，StartIdx应为合理值（lastLogIdx-99），而非1
+func TestElection_FollowerBehind100Entries(t *testing.T) {
 	rn := &RaftNode{
 		id:        "node-1",
 		state:     StateLeader,
@@ -78,14 +78,14 @@ func TestKnife1_FollowerBehind100Entries(t *testing.T) {
 		t.Errorf("Gap=%d, 期望 101", f.Gap)
 	}
 	if f.StartIdx == 1 {
-		t.Error("StartIdx=1 是旧bug（全量重传），刀一修复后不应出现")
+		t.Error("StartIdx=1 是旧bug（全量重传），选举修复后不应出现")
 	}
 	t.Logf("✓ follower落后101条: StartIdx=%d, Gap=%d, 仅传增量而非全量", f.StartIdx, f.Gap)
 }
 
-// TestKnife1_ElectionStormNoStartIdxOne
-// 刀一验证: 模拟3次连续选举，每次选举后StartIdx都不为1
-func TestKnife1_ElectionStormNoStartIdxOne(t *testing.T) {
+// TestElection_ElectionStormNoStartIdxOne
+// 选举验证: 模拟3次连续选举，每次选举后StartIdx都不为1
+func TestElection_ElectionStormNoStartIdxOne(t *testing.T) {
 	rn := &RaftNode{
 		id:        "node-1",
 		state:     StateLeader,
@@ -120,9 +120,9 @@ func TestKnife1_ElectionStormNoStartIdxOne(t *testing.T) {
 	}
 }
 
-// TestKnife1_DecrementNextIdx
-// 刀一验证: DecrementNextIdx 正确递减且不低于1
-func TestKnife1_DecrementNextIdx(t *testing.T) {
+// TestElection_DecrementNextIdx
+// 选举验证: DecrementNextIdx 正确递减且不低于1
+func TestElection_DecrementNextIdx(t *testing.T) {
 	rn := &RaftNode{
 		nextIdx: make(map[string]int64),
 	}

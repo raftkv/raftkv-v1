@@ -89,11 +89,11 @@ preflight() {
     return $rc
 }
 
-run_knife() {
+run_ci_gate() {
     local tag="$1" no_tag="${2:-true}"
     local args="$BRANCH $tag baseline,idem,wal_snap,health"
     if [ "$no_tag" = "true" ]; then args="$args --no-tag"; fi
-    bash "${TESTS_DIR}/knife_run.sh" $args 2>&1
+    bash "${TESTS_DIR}/ci_gate.sh" $args 2>&1
 }
 
 get_run_id() {
@@ -113,7 +113,7 @@ run_task() {
 # ── T1: harness.sh RUN_ID守卫 ──
 task_t1() {
     log "T1: harness.sh RUN_ID赋值加守卫"
-    log "方案: RUN_ID=\"\" → RUN_ID=\"\${RUN_ID:-}\"  双保险保留knife_run save/restore"
+    log "方案: RUN_ID=\"\" → RUN_ID=\"\${RUN_ID:-}\"  双保险保留ci_gate save/restore"
 
     # R8: 若守卫已存在则跳过sed（修复重跑sed空操作）
     if grep -q '^RUN_ID="\${RUN_ID:-}"$' "${TESTS_DIR}/harness.sh"; then
@@ -131,7 +131,7 @@ task_t1() {
     bash -n "${TESTS_DIR}/harness.sh"
     git add "${TESTS_DIR}/harness.sh"
     check_flags "T1" || return $?
-    if run_knife "v1.0.0-d2-t1" "true" | tee -a "$RLOG"; then
+    if run_ci_gate "v1.0.0-d2-t1" "true" | tee -a "$RLOG"; then
         local rid; rid=$(get_run_id)
         git diff --cached --quiet || git commit -m "fix(ci): T1 harness.sh RUN_ID守卫 (run_id=$rid)"
         log "T1 PASS commit=$(git rev-parse --short HEAD) run_id=$rid"
@@ -145,7 +145,7 @@ task_t1() {
 task_t2() {
     log "T2: do_rollback冒烟改双节点方案A"
     log "方案: 移source至do_rollback前, 替换内联docker run为up_cluster/down_cluster, RID=rbk-\${RUN_ID}"
-    local KR="${TESTS_DIR}/knife_run.sh"
+    local KR="${TESTS_DIR}/ci_gate.sh"
 
     # R7: 确认变量/函数定义在插入点作用域可用
     log "R7: 作用域可用性检查"
@@ -153,8 +153,8 @@ task_t2() {
 
     # R1: 锚定模式删除/替换（禁止行号sed）
 
-    # 1. 删除SMOKE段source块（锚定: export IMAGE_NAME... → RUN_ID="$_knife_run_id"）
-    sed -i '/^export IMAGE_NAME LICENSE_DIR FP_ANCHOR EVIDENCE_DIR TESTS_DIR$/,/^RUN_ID="\$_knife_run_id"$/d' "$KR"
+    # 1. 删除SMOKE段source块（锚定: export IMAGE_NAME... → RUN_ID="$_ci_gate_id"）
+    sed -i '/^export IMAGE_NAME LICENSE_DIR FP_ANCHOR EVIDENCE_DIR TESTS_DIR$/,/^RUN_ID="\$_ci_gate_id"$/d' "$KR"
     if grep -q '^export IMAGE_NAME LICENSE_DIR FP_ANCHOR EVIDENCE_DIR TESTS_DIR$' "$KR"; then
         log "T2 FAIL(R1): source块未删除, exit 6"; return 6
     fi
@@ -191,11 +191,11 @@ task_t2() {
     # 3. 在do_rollback前插入source块（锚定: do_rollback() {）
     sed -i '/^do_rollback() {/i\
 export IMAGE_NAME LICENSE_DIR FP_ANCHOR EVIDENCE_DIR TESTS_DIR\
-_knife_run_id="$RUN_ID"\
+_ci_gate_id="$RUN_ID"\
 source "${TESTS_DIR}/harness.sh"\
-RUN_ID="$_knife_run_id"' "$KR"
+RUN_ID="$_ci_gate_id"' "$KR"
 
-    if ! grep -q '^_knife_run_id="\$RUN_ID"$' "$KR"; then
+    if ! grep -q '^_ci_gate_id="\$RUN_ID"$' "$KR"; then
         log "T2 FAIL(R1): source块未插入, exit 6"; return 6
     fi
     log "R1验证: source块已插入"
@@ -209,7 +209,7 @@ RUN_ID="$_knife_run_id"' "$KR"
     bash -n "$KR"
     git add "$KR"
     check_flags "T2" || return $?
-    if run_knife "v1.0.0-d2-t2" "true" | tee -a "$RLOG"; then
+    if run_ci_gate "v1.0.0-d2-t2" "true" | tee -a "$RLOG"; then
         local rid; rid=$(get_run_id)
         git diff --cached --quiet || git commit -m "fix(ci): T2 do_rollback双节点冒烟 (run_id=$rid)"
         log "T2 PASS commit=$(git rev-parse --short HEAD) run_id=$rid"
@@ -332,7 +332,7 @@ generate_decision() {
 # ── 主流程 ──
 if [ "$DRY_RUN" = "true" ]; then
     echo "=== DRY RUN ==="
-    echo "队列: T1(harness RUN_ID守卫) → T2(do_rollback双节点) → T3(sleep→wait_for) → 终局(knife_run $FINAL_TAG)"
+    echo "队列: T1(harness RUN_ID守卫) → T2(do_rollback双节点) → T3(sleep→wait_for) → 终局(ci_gate $FINAL_TAG)"
     echo ""
     echo "旗标规则:"
     echo "  - 触碰assert_*行或期望值字面量 → exit 3"
@@ -398,8 +398,8 @@ if [ $START -le 1 ]; then run_task task_t1; fi
 if [ $START -le 2 ]; then run_task task_t2; fi
 if [ $START -le 3 ]; then run_task task_t3; fi
 
-log "终局: knife_run $BRANCH $FINAL_TAG"
-run_knife "$FINAL_TAG" "false" | tee -a "$RLOG"
+log "终局: ci_gate $BRANCH $FINAL_TAG"
+run_ci_gate "$FINAL_TAG" "false" | tee -a "$RLOG"
 log "终局PASS tag=$FINAL_TAG"
 
 generate_decision
