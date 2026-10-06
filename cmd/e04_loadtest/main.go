@@ -211,9 +211,11 @@ func main() {
 				}
 				localSeq++
 				n := seq.Add(1)
-				isWrite := (localSeq*100 / *writeRatio)%100 == 0
-				if *writeRatio == 100 {
+				isWrite := false
+				if *writeRatio >= 100 {
 					isWrite = true
+				} else if *writeRatio > 0 {
+					isWrite = (localSeq*100 / *writeRatio)%100 == 0
 				}
 
 				var resp *http.Response
