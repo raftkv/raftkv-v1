@@ -7,14 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version Strategy
 
-- **0.x releases**: API allows breaking changes. Minor version bumps may include
-  incompatible API modifications.
-- **v1.0.0 upgrade condition**: First production-grade deployment completed +
-  API maintains zero breaking changes for one full quarter (3 months).
-  v1.0.0 will be separately decided at that time.
-- **Internal history**: This project underwent internal iteration v1.x through
-  v2.4 prior to open-sourcing. Open-source versioning starts from v0.5.0.
-  Internal version numbers are not used externally.
+- **v1.0.0**: First stable public release. API is considered stable; breaking
+  changes will follow semantic versioning.
+- **0.x releases**: Pre-stable API. Breaking changes allowed in minor bumps.
+- **Internal history**: This project underwent internal iteration prior to
+  open-sourcing. Open-source versioning starts from v0.5.0.
+
+## [v1.0.0] - 2026-10-06
+
+### Added
+
+- `WAL_PATH` environment variable now documented and set in all Docker Compose files
+- `deploy.env.example` rewritten with full variable documentation and neutral placeholders
+- Quickstart deployment (`examples/docker-compose-quickstart.yml`) with read-only mode
+- 503 response with guidance text when writes are rejected in degraded (Fail-Open) mode
+- README dual-path documentation: "90-Second Experience" (quickstart) and "Production Deployment" (fail-closed)
+- Docker memory recommendation (≥16 GB, 32 GB for production)
+
+### Changed
+
+- **Image name unified** to `raftkit-gateway:v1` across all compose files and documentation
+- **Version badge** updated from v0.5.1 to v1.0.0
+- **Internal designations purged**: all internal project names and personal identifiers
+  replaced with neutral terms
+- `deploy.env.example` image name updated from `raftkv-v26:ci-knife` to `raftkit-gateway:v1`
+- `deploy_up.sh` / `deploy_verify.sh` default image updated to `raftkit-gateway:v1`
+
+### Fixed
+
+- `/raft/propose` now correctly returns 503 in degraded (Fail-Open) mode instead of
+  allowing writes through
+- All Docker Compose files now set `WAL_PATH`, preventing `log.Fatal` on startup
 
 ## [v0.5.0] - 2026-09-15
 

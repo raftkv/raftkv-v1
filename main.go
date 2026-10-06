@@ -37,9 +37,9 @@ import (
 )
 
 var (
-	Version   = "v2.5.1"
-	BuildTime = "2026-09-02"
-	GitCommit = "v251-sm3-integrity"
+	Version   = "v1.0.0"
+	BuildTime = "2026-10-06"
+	GitCommit = "v1.0.0-public-release"
 )
 
 const sm4TestKeyHex = "726166746b765f736d34746573743031" // TEST KEY ONLY - public by design (README/docs公开示例钥,公开是设计使然)

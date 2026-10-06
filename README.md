@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
-[![Version](https://img.shields.io/badge/version-v0.5.1-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.0.0-orange.svg)](CHANGELOG.md)
 
 RaftKV is a distributed key-value store built on a Raft consensus engine with
 SM4-encrypted WAL storage, snapshot-based log compaction, and pipeline-optimized
@@ -91,6 +91,7 @@ All measurements use a 5-node cluster with concurrency=128, write ratio=20%.
 
 - Go 1.24.0 or later
 - Docker and Docker Compose (for multi-node deployment)
+- Docker memory: ≥16 GB recommended (32 GB for production; WSL2 users adjust `.wslconfig`)
 
 ### Build
 
@@ -98,40 +99,91 @@ All measurements use a 5-node cluster with concurrency=128, write ratio=20%.
 go build ./...
 ```
 
-### Run a Single Node
+### 90-Second Experience (Quickstart, Read-Only)
+
+The quickest way to see RaftKV in action — no license or certs required.
+Uses `LICENSE_FAIL_MODE=open` (degraded read-only mode): reads and cluster
+operations work, writes return 503 with guidance.
+
+```bash
+# Build the image first
+docker build -t raftkit-gateway:v1 .
+
+# Start a 5-node cluster (read-only mode)
+docker compose -f examples/docker-compose-quickstart.yml up -d
+
+# Wait ~20s for nodes to become healthy, then verify
+docker ps --filter "name=raft-node" --format "table {{.Names}}\t{{.Status}}"
+
+# Check cluster status (find the leader)
+curl http://localhost:9001/raft/status
+
+# Read cluster members
+curl http://localhost:9001/cluster/members
+
+# Attempt a write (will be rejected with 503 in read-only mode)
+curl -X POST http://localhost:9001/raft/propose -d '{"key":"hello","value":"world"}'
+
+# Shut down
+docker compose -f examples/docker-compose-quickstart.yml down
+```
+
+### Run a Single Node (Development)
 
 ```bash
 # SM4 key: 16 bytes as 32-char hex (TEST KEY ONLY - do not use in production)
 export SM4_KEY="726166746b765f736d34746573743031"
+# WAL path: required for WAL persistence (use a unique path per node)
+export WAL_PATH="/tmp/raft-node-1.wal"
 # Demo mode: allows startup without a license (read-only)
 export LICENSE_FAIL_MODE=open
 
 go run . -id node-1 -port 9500 -http 9000
 ```
 
-### Run a 3-Node Cluster (Local)
+### Run a 3-Node Cluster (Local Development)
 
 ```bash
+# Shared environment
+export SM4_KEY="726166746b765f736d34746573743031"
+export LICENSE_FAIL_MODE=open
+
 # Terminal 1
+export WAL_PATH="/tmp/raft-node-1.wal"
 go run . -id node-1 -port 9500 -http 9001 \
   -peers node-2=localhost:9501,node-3=localhost:9502
 
 # Terminal 2
+export WAL_PATH="/tmp/raft-node-2.wal"
 go run . -id node-2 -port 9501 -http 9002 \
   -peers node-1=localhost:9500,node-3=localhost:9502
 
 # Terminal 3
+export WAL_PATH="/tmp/raft-node-3.wal"
 go run . -id node-3 -port 9502 -http 9003 \
   -peers node-1=localhost:9500,node-2=localhost:9501
 ```
 
-### Run a 5-Node Cluster (Docker Compose)
+### Production Deployment (5-Node, Fail-Closed)
+
+Production mode requires a valid license and SM4 key. See
+[Deployment](#deployment) for full instructions.
 
 ```bash
+# 1. Copy and edit the deployment config
+cp tests/deploy/deploy.env.example tests/deploy/deploy.env
+# Edit deploy.env: set SM4_KEY, LICENSE_DIR, FP_ANCHOR
+
+# 2. Generate mTLS certificates
+bash gen_certs.sh
+
+# 3. Build the image
+docker build -t raftkit-gateway:v1 .
+
+# 4. Start the cluster
 docker compose -p deploy5 \
   -f tests/deploy/docker-compose-5node.yml \
   -f tests/deploy/docker-compose-5node-ports.yml \
-  -f tests/deploy/docker-compose-5node-batch16.yml \
   --env-file tests/deploy/deploy.env up -d
 ```
 
@@ -193,8 +245,11 @@ curl http://localhost:9001/raft/status
 | `HTTP_BIND` | `127.0.0.1` | HTTP bind address |
 | `PEERS` | (empty) | Peer list: `id1=host1:port1,id2=host2:port2` |
 | `SM4_KEY` | (required) | SM4 encryption key (16 bytes as 32-char hex, fail-closed) |
+| `WAL_PATH` | (required) | WAL file path. Must be set when WAL is enabled (default). Each node needs a unique path. |
 | `LICENSE_FAIL_MODE` | `closed` | `closed` = fail-closed, `open` = degraded read-only |
-| `RSA_PRIVATE_KEY_PATH` | (env) | Path to RSA private key for license verification |
+| `LICENSE_DIR` | (required for closed) | Directory containing license key files (`node-1.key` ~ `node-N.key`) |
+| `FP_ANCHOR` | (optional) | Fingerprint anchor for stable hardware binding in container environments |
+| `TLS_CERT_FILE` / `TLS_KEY_FILE` | (optional) | mTLS certificate/key paths. Defaults to `./certs/<node>-cert.pem` / `./certs/<node>-key.pem` |
 
 See [`raftkv.env.default`](raftkv.env.default) for the full configuration template.
 
@@ -314,13 +369,60 @@ docker run -d --name raft-node-1 \
   -p 9000:9000 -p 9500:9500 \
   -e NODE_ID=node-1 \
   -e SM4_KEY="your-16-byte-key" \
+  -e WAL_PATH="/tmp/raft.wal" \
+  -e LICENSE_FAIL_MODE=open \
   raftkit-gateway:v1
 ```
 
-### 5-Node Docker Compose
+### 5-Node Docker Compose (Production)
 
-See [`tests/deploy/`](tests/deploy/) for the full 5-node deployment with
-port mapping overlay and batch16 configuration.
+Production deployment requires three preparatory steps:
+
+#### Step 1: Configure `deploy.env`
+
+```bash
+cp tests/deploy/deploy.env.example tests/deploy/deploy.env
+```
+
+Edit `deploy.env` and set:
+- `SM4_KEY` — generate with `openssl rand -hex 16`
+- `LICENSE_DIR` — absolute path to your license key directory
+- `FP_ANCHOR` — stable host identifier (e.g., hostname or UUID)
+
+#### Step 2: Generate mTLS Certificates
+
+```bash
+bash gen_certs.sh
+# Generates: certs/ca-cert.pem, certs/node-1-cert.pem, certs/node-1-key.pem, ...
+```
+
+#### Step 3: Obtain License Keys
+
+Place RSA-signed license key files in the `LICENSE_DIR` directory:
+`node-1.key`, `node-2.key`, ..., `node-5.key`.
+
+Contact the project owner for commercial license issuance.
+
+#### Step 4: Start the Cluster
+
+```bash
+docker compose -p deploy5 \
+  -f tests/deploy/docker-compose-5node.yml \
+  -f tests/deploy/docker-compose-5node-ports.yml \
+  --env-file tests/deploy/deploy.env up -d
+```
+
+Port mapping: node-1: 9001/9501, node-2: 9002/9502, ..., node-5: 9005/9505.
+
+### Quickstart (Evaluation Only)
+
+For a fast read-only demo without license or certs:
+
+```bash
+docker compose -f examples/docker-compose-quickstart.yml up -d
+```
+
+See [90-Second Experience](#90-second-experience-quickstart-read-only) above.
 
 ### systemd
 
@@ -408,9 +510,8 @@ Test execution: `go test ./... -skip TestRealGRPCConnectivity`
   the container-internal endpoint at `127.0.0.1:9600/debug/pprof`.
 - **TestRealGRPCConnectivity**: Requires a running gRPC server; excluded from
   automated test runs via the `-skip` flag.
-- **API stability**: v0.5.0 is a 0.x release. Breaking API changes may occur
-  in minor version bumps. v1.0.0 will be tagged after the first production
-  deployment with one quarter of zero breaking API changes.
+- **API stability**: v1.0.0 is the first stable release. The API is considered
+  stable; breaking changes will follow semantic versioning.
 
 ---
 
