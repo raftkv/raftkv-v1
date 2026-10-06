@@ -32,6 +32,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replaced with neutral terms
 - `deploy.env.example` image name updated from `raftkv-v26:ci-knife` to `raftkit-gateway:v1`
 - `deploy_up.sh` / `deploy_verify.sh` default image updated to `raftkit-gateway:v1`
+- **Fingerprint prefix updated** from `daijin235-anchor:` to `raftkv-anchor:` in
+  `GetMachineFingerprint()` — license files must be re-signed to bind to the new
+  fingerprint. The embedded RSA public key in `license_guard.go` has been regenerated
+  accordingly. **Developer note**: any future change to the fingerprint prefix or
+  computation MUST be accompanied by re-signing all license files with the corresponding
+  private key; otherwise Fail-Closed startup will reject all nodes
 
 ### Fixed
 
