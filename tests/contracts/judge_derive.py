@@ -20,7 +20,7 @@
 
   NP-1~5: 网络分区验收（继承 batch28）
 
-用法: python judge_batch29.py --evidence-dir tests/evidence/d3-batch29 --output tests/evidence/d3-batch29/derive_verdict.json
+用法: python judge_derive.py --evidence-dir tests/evidence/d3-batch29 --output tests/evidence/d3-batch29/derive_verdict.json
 """
 
 import argparse

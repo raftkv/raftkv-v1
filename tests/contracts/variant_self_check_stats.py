@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
-from judge_batch23 import compute_statistic, get_reg_stat, load_regression_gate
+from judge_fault3 import compute_statistic, get_reg_stat, load_regression_gate
 
 E4B_THRESHOLD = 3.5
 BOUNDARY_VALUES = [3.2438, 3.4802, 3.5166]

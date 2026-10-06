@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """batch23 判定脚本 — 逐字段对照证据 JSON vs YAML 阈值
 
-用法: python judge_batch23.py --contract tests/contracts/batch23.yaml --evidence-dir tests/evidence/d3-batch23 --output tests/evidence/d3-batch23/verdict.json
+用法: python judge_fault3.py --contract tests/contracts/fault_injection_3.yaml --evidence-dir tests/evidence/d3-batch23 --output tests/evidence/d3-batch23/verdict.json
 
 v1.0.0-batch27: verdict 判定改为引用 regression.yaml 线 ID，删除硬编码阈值。
 裁决状态引用 decisions.md 晨审判决落款作为裁决源。

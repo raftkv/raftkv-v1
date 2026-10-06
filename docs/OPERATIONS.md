@@ -21,7 +21,7 @@ curl.exe http://localhost:9001/raft/stats
 ```bash
 external/tools/chaos_injector.exe \
   -cluster-config config.toml \
-  -contract tests/contracts/batch21.yaml \
+  -contract tests/contracts/fault_injection_1.yaml \
   -evidence-dir tests/evidence/run \
   -scenario-type cascading
 ```
@@ -32,7 +32,7 @@ external/tools/chaos_injector.exe \
 
 ```bash
 external/tools/chaos_injector.exe \
-  --contract tests/contracts/batch23.yaml \
+  --contract tests/contracts/fault_injection_3.yaml \
   --evidence-dir tests/evidence/run \
   --cluster-config config.toml \
   --scenario-type network_partition \
@@ -54,8 +54,8 @@ python tests/contracts/regression_gate.py \
 ## 判定
 
 ```bash
-python tests/contracts/judge_batch23.py \
-  --contract tests/contracts/batch23.yaml \
+python tests/contracts/judge_fault3.py \
+  --contract tests/contracts/fault_injection_3.yaml \
   --evidence-dir tests/evidence/run \
   --output tests/evidence/run/verdict.json
 ```
@@ -65,7 +65,7 @@ verdict 引用 regression.yaml 线 ID + stat 定义。
 ## NP 验收判定
 
 ```bash
-python tests/contracts/judge_batch28.py \
+python tests/contracts/judge_np.py \
   --evidence-dir tests/evidence/run \
   --output tests/evidence/run/np_verdict.json
 ```

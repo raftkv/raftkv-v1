@@ -8,7 +8,7 @@
   NP-4: 恢复后追平 - commit_caught_up == True
   NP-5: term 单调 - term_monotonic == True
 
-用法: python judge_batch28.py --evidence-dir tests/evidence/d3-batch28 --output tests/evidence/d3-batch28/np_verdict.json
+用法: python judge_np.py --evidence-dir tests/evidence/d3-batch28 --output tests/evidence/d3-batch28/np_verdict.json
 """
 
 import argparse

@@ -24,7 +24,7 @@ Raft 共识引擎实现，含 pre-vote、pipeline 批处理、group commit、WAL
 ```bash
 docker compose -p deploy5 -f tests/deploy/docker-compose-5node.yml \
   -f tests/deploy/docker-compose-5node-ports.yml \
-  -f tests/deploy/docker-compose-5node-batch16.yml \
+  -f tests/deploy/docker-compose-5node-tls.yml \
   --env-file tests/deploy/deploy.env up -d
 ```
 
@@ -33,6 +33,6 @@ docker compose -p deploy5 -f tests/deploy/docker-compose-5node.yml \
 - `raft.go` — Raft 状态机
 - `main.go` — HTTP 端点
 - `types.go` — RaftStats 等类型
-- `tests/contracts/judge_batch23.py` — 判定脚本（引用 regression.yaml 线 ID）
+- `tests/contracts/judge_fault3.py` — 判定脚本（引用 regression.yaml 线 ID）
 - `tests/contracts/regression_gate.py` — 回归门检查
 - `cmd/chaos_injector/` — 故障注入工具

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """batch29 推导机器催缴变异自检
 
-构造两组变异用例验证 judge_batch29 的校验逻辑生效：
+构造两组变异用例验证 judge_derive 的校验逻辑生效：
   变异1: decisions.md 删除 §四b 推导段 → DERIVE-1 应 FAIL
   变异2: report.md 删除首屏三答 → DERIVE-2 应 FAIL
 
@@ -20,7 +20,7 @@ from pathlib import Path
 
 DECISIONS_MD_PATH = Path("tests/evidence/d3-batch25/decisions.md")
 REPORT_MD_PATH = Path("tests/evidence/d3-batch29/report.md")
-JUDGE_SCRIPT = Path("tests/contracts/judge_batch29.py")
+JUDGE_SCRIPT = Path("tests/contracts/judge_derive.py")
 
 
 def run_judge(decisions_path, report_path, output_path):

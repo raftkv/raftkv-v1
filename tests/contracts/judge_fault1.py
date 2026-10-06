@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """batch21 判定脚本 — 逐字段对照证据 JSON vs YAML 阈值
 
-用法: python judge_batch21.py --contract tests/contracts/batch21.yaml --evidence-dir tests/evidence/d3-batch21 --output tests/evidence/d3-batch21/verdict.json
+用法: python judge_fault1.py --contract tests/contracts/fault_injection_1.yaml --evidence-dir tests/evidence/d3-batch21 --output tests/evidence/d3-batch21/verdict.json
 
 退出码:
   0 = 判定完成（PASS 或 FAIL）

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """batch22 判定脚本 — 逐字段对照证据 JSON vs YAML 阈值
 
-用法: python judge_batch22.py --contract tests/contracts/batch22.yaml --evidence-dir tests/evidence/d3-batch22 --output tests/evidence/d3-batch22/verdict.json
+用法: python judge_fault2.py --contract tests/contracts/fault_injection_2.yaml --evidence-dir tests/evidence/d3-batch22 --output tests/evidence/d3-batch22/verdict.json
 
 退出码:
   0 = 判定完成（PASS 或 FAIL）

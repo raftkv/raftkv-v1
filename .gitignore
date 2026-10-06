@@ -68,20 +68,20 @@ diag_report.pdf
 main,go,
 tests/evidence/
 
-# --- batch16 证书（含私钥，不入git）---
+# --- TLS证书（含私钥，不入git）---
 tests/deploy/certs/
 
-# --- D2-batch1 部署配置（修正B: 不入git）---
+# --- 部署配置（修正B: 不入git）---
 tests/deploy/deploy.env
 tests/deploy/.sm4_key
-# --- batch21 编译产物 ---
+# --- chaos injector 编译产物 ---
 cmd/chaos_injector/chaos_injector_arm64
 cmd/chaos_injector/chaos_injector
 tools/loadgen/loadgen_linux
 tools/loadgen/loadgen.exe
 
-# --- batch21 证据目录（显式排除，RL-08）---
-tests/evidence/d3-batch21/
+# --- 证据目录（显式排除，RL-08）---
+tests/evidence/d3-fault1/
 # --- 内部文档（不进公网）---
 LEDGER.md
 QUEUE.md
@@ -107,12 +107,15 @@ pkg/supervisor-module/supervisor-test-linux-arm64
 pkg/wal-sm4-module/wal-sm4-test-linux-arm64
 
 # --- 编译产物（根目录 binaries）---
-gateway_batch12
-gateway_batch12_v2
+gateway_test
+gateway_test_v2
 
 # --- 内部测试产物 ---
 tests/auto/
 tests/contracts/__pycache__/
+tests/deploy/smoke5m_*.txt
+tests/deploy/soak_*_1h*.txt
+tests/deploy/soak_*_start.txt
 
 # --- 内部artifact ---
 .merkle-snapshot.json
