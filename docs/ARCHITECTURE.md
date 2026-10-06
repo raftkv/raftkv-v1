@@ -17,20 +17,20 @@
 
 ## Raft 配置
 
-- 选举超时: 800-1200ms (batch22 优化)
+- 选举超时: 800-1200ms
 - 心跳间隔: 50ms
-- pre-vote: 启用 (batch23)
+- pre-vote: 启用
 - pipeline: 深度 8, batch=64, window=2ms
 
 ## 可观测性端点
 
-| 端点 | 用途 | 来源批次 |
-|------|------|---------|
-| /raft/stats | 节点状态 | batch21 |
-| /raft/entry | 日志采样 | batch22 |
-| /raft/pre_vote | pre-vote 状态 | batch23 |
-| /latency/decomp | 延迟分解 | batch18 |
-| /raft/election_metrics | 选举/心跳计数 | batch26 (batch27 接入递增) |
+| 端点 | 用途 |
+|------|------|
+| /raft/stats | 节点状态 |
+| /raft/entry | 日志采样 |
+| /raft/pre_vote | pre-vote 状态 |
+| /latency/decomp | 延迟分解 |
+| /raft/election_metrics | 选举/心跳计数 |
 ## 回归门 (9 线)
 
 | 线 ID | 名称 | stat | 阈值 |
@@ -45,7 +45,7 @@
 | REG-8 | prevote_effective | count | >0 |
 | REG-9 | partition_safety | max | ≤1 |
 
-## 网络分区场景 (batch28)
+## 网络分区场景
 
 | 场景 | 分区方式 | 预期 |
 |------|---------|------|

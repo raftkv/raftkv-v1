@@ -9,9 +9,8 @@ Raft 共识引擎实现，含 pre-vote、pipeline 批处理、group commit、WAL
 
 ## 性能
 
-- TPS: 796.7 → 9020 (11.3x, batch11→batch19)
+- TPS: 796.7 → 9020 (11.3x)
 - P99: 50ms (c=128) / 100ms (c=512)
-- 详见: docs/reports/performance_campaign_final.md
 
 ## 治理
 

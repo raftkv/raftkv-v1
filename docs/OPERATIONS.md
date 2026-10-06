@@ -22,7 +22,7 @@ curl.exe http://localhost:9001/raft/stats
 external/tools/chaos_injector.exe \
   -cluster-config config.toml \
   -contract tests/contracts/batch21.yaml \
-  -evidence-dir tests/evidence/d3-batchXX \
+  -evidence-dir tests/evidence/run \
   -scenario-type cascading
 ```
 
@@ -33,7 +33,7 @@ external/tools/chaos_injector.exe \
 ```bash
 external/tools/chaos_injector.exe \
   --contract tests/contracts/batch23.yaml \
-  --evidence-dir tests/evidence/d3-batchXX \
+  --evidence-dir tests/evidence/run \
   --cluster-config config.toml \
   --scenario-type network_partition \
   --timebox 30m
@@ -46,7 +46,7 @@ external/tools/chaos_injector.exe \
 ```bash
 python tests/contracts/regression_gate.py \
   --regression tests/contracts/regression.yaml \
-  --verdict tests/evidence/d3-batchXX/verdict.json
+  --verdict tests/evidence/run/verdict.json
 ```
 
 9 线全绿方可推进本批门。
@@ -56,18 +56,18 @@ python tests/contracts/regression_gate.py \
 ```bash
 python tests/contracts/judge_batch23.py \
   --contract tests/contracts/batch23.yaml \
-  --evidence-dir tests/evidence/d3-batchXX \
-  --output tests/evidence/d3-batchXX/verdict.json
+  --evidence-dir tests/evidence/run \
+  --output tests/evidence/run/verdict.json
 ```
 
-verdict 引用 regression.yaml 线 ID (batch27 改造) + stat 定义 (batch28)。
+verdict 引用 regression.yaml 线 ID + stat 定义。
 
 ## NP 验收判定
 
 ```bash
 python tests/contracts/judge_batch28.py \
-  --evidence-dir tests/evidence/d3-batchXX \
-  --output tests/evidence/d3-batchXX/np_verdict.json
+  --evidence-dir tests/evidence/run \
+  --output tests/evidence/run/np_verdict.json
 ```
 
 NP-1~5: 无脑裂 / 多数派可用 / 少数派不选举 / 恢复追平 / term 单调

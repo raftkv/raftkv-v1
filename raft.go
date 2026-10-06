@@ -139,16 +139,16 @@ type RaftNode struct {
 	candidateFailCount int32     // 连续选举失败次数
 	firstCandidateTime time.Time // 首次进入 Candidate 的时间窗口起点
 
-	// --- TCX-Ⅳ 硬修复：WAL重放门禁 ---
+	// --- WAL重放门禁 ---
 	walReplayCompleted bool           // WAL重放是否完成
 	replayStats        WALReplayStats // 重放统计
 
-	// --- TCX-Ⅳ 硬修复：WAL物理剥离门禁 ---
+	// --- WAL物理剥离门禁 ---
 	walGateClosed      bool     // WAL门禁是否关闭
 	walGate            *WALGate // WAL门禁实例
 	rejectedWriteCount int64    // 被拒绝的写入计数
 
-	// --- TCX-Ⅳ 硬修复：批量闪电同步 ---
+	// --- 批量闪电同步 ---
 	batchSyncMgr *BatchSyncManager // 批量同步管理器
 
 	// --- R-04修复A: peerClients 线程安全访问 ---
@@ -1273,7 +1273,7 @@ func (rn *RaftNode) requestVotes(term int64, peers []PeerInfo) {
 		// batch11: 启动 group commit 攒批（锁内调用）
 		rn.startProposeBatchLocked()
 
-		// TCX-Ⅳ: 启动批量同步管理器
+		// 启动批量同步管理器
 		if rn.batchSyncMgr != nil {
 			rn.batchSyncMgr.Start()
 		}
@@ -2302,7 +2302,7 @@ func (rn *RaftNode) HandleAppendEntries(
 			}
 			rn.lastApplied = rn.commitIdx
 			committedLogs = rn.collectCommittedLogs(oldCommit)
-			rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) // 
+			rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) //
 		}
 		// 日志追上 Leader 后，允许参与选举
 		if !rn.logCaughtUp && req.LeaderCommit > 0 && rn.lastLogIndexLocked() >= req.LeaderCommit {
@@ -2373,7 +2373,7 @@ func (rn *RaftNode) HandleAppendEntries(
 		}
 		rn.lastApplied = rn.commitIdx
 		committedLogs = rn.collectCommittedLogs(oldCommit)
-		rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) // 
+		rn.applyConfigChangesLocked(oldCommit, rn.commitIdx) //
 	}
 
 	// 日志追上 Leader 后，允许参与选举

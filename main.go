@@ -75,7 +75,7 @@ func main() {
 		log.Fatalf("[main] GRPC_PORT 非法 (%q): 必须为正整数", grpcPort)
 	}
 	// SM4_KEY 早期校验（fail-closed）：在 peer 连接等耗时初始化之前校验，
-	// 确保 SM4_KEY 缺失/非法时进程立即以非零码退出（D3-F1011 修复）。
+	// 确保 SM4_KEY 缺失/非法时进程立即以非零码退出。
 	sm4Key := loadSM4KeyFromEnv()
 	if err := sm4TestKeyGuard(sm4Key, *production); err != nil {
 		log.Fatalf("[main] 拒绝以 --production 模式启动: %v", err)
@@ -190,7 +190,7 @@ func main() {
 		defer pipeline.Close()
 	}
 
-	// TCX-Ⅳ: 强制WAL回放（即使管线初始化失败也执行）
+	// 强制WAL回放（即使管线初始化失败也执行）
 	var replayStats WALReplayStats
 	if pipeline != nil {
 		replayedLogs, stats, replayErr := pipeline.ReplayWALWithStats()
@@ -208,7 +208,7 @@ func main() {
 		replayStats.Integrity = "无WAL"
 	}
 
-	// TCX-Ⅳ: 启动WAL门禁健康探测
+	// 启动WAL门禁健康探测
 	if pipeline != nil && pipeline.Storage() != nil {
 		dataDir := filepath.Dir(pipelineCfg.WALPath)
 		audit := NewWALGateAuditLog(nodeID, dataDir)
@@ -223,7 +223,7 @@ func main() {
 		fmt.Printf("[启动] WAL门禁已启动 (阈值=%d, 探测间隔=%v)\n", 3, 1*time.Second)
 	}
 
-	// TCX-Ⅳ: 初始化批量同步管理器
+	// 初始化批量同步管理器
 	batchSyncCfg := BatchSyncConfigFromEnv()
 	node.batchSyncMgr = NewBatchSyncManager(node, batchSyncCfg)
 	fmt.Printf("[启动] 批量同步管理器已初始化 (enable=%v, lagThreshold=%d, maxBatch=%d)\n",
