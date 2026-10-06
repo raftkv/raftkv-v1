@@ -9,9 +9,9 @@ ExecStart=/root/raftkv_cluster/raftkv_daemon.sh
 ExecStop=/bin/bash -c 'pkill -f raftkv_gateway; rm -f /root/raftkv_cluster/pids/*.pid'
 Restart=always
 RestartSec=10
-# 双模式授权防线（2026-09-01 姜总裁决二）
+# 双模式授权防线（2026-09-01 项目组决议二）
 # closed = 授权校验失败即拒绝启动（Fail-Closed，出厂默认）
-# 严禁改为 open，除非甲方已签署并生效《授权到期降级只读补充条款》
+# 严禁改为 open，除非被许可方已签署并生效《授权到期降级只读补充条款》
 Environment=LICENSE_FAIL_MODE=closed
 KillMode=control-group
 KillSignal=SIGTERM

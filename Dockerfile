@@ -19,7 +19,7 @@ FROM alpine:3.21
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
 RUN apk add --no-cache ca-certificates tzdata curl
 ENV TZ=Asia/Shanghai
-# 双模式授权防线（2026-09-01 姜总裁决二）
+# 双模式授权防线（2026-09-01 项目组决议二）
 # closed = 授权校验失败即拒绝启动（Fail-Closed，出厂默认，唯一安全值）
 # open   = 授权校验失败降级只读运行，严禁在未签补充条款前启用
 ENV LICENSE_FAIL_MODE=closed

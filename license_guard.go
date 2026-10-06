@@ -78,7 +78,7 @@ func IsDegradedMode() (bool, string) {
 }
 
 // =========================================================================
-// 双模式授权防线（2026-09-01 姜总裁决二）
+// 双模式授权防线（2026-09-01 项目组决议二）
 //
 // LICENSE_FAIL_MODE 环境变量决定授权校验失败时引擎的处置语义：
 //   closed（出厂默认）→ Fail-Closed：log.Fatal 拒绝启动，进程终止
@@ -86,7 +86,7 @@ func IsDegradedMode() (bool, string) {
 //
 // 商业与法务约束（不可绕过）：
 //   · 默认值恒为 closed；空值、非法值一律回落 closed，绝不因配置歧义降级为 open
-//   · open 模式仅在甲方已签署并生效《授权到期降级只读补充条款》后方可开启
+//   · open 模式仅在被许可方已签署并生效《授权到期降级只读补充条款》后方可开启
 //   · 未签补充条款而擅自开启 open 模式，构成对主合同免责条款的实质性违反
 // =========================================================================
 
@@ -123,7 +123,7 @@ func LicenseFailModeRaw() string {
 }
 
 // SetDegradedMode 置位全局降级只读状态（写锁，线程安全）。
-// 调用前置条件：LicenseFailMode() == open 且甲方补充条款已生效。
+// 调用前置条件：LicenseFailMode() == open 且被许可方补充条款已生效。
 // 置位后由 licenseGuardInterceptor 与 HandleAddNode/HandleRemoveNode 拦截写入。
 func SetDegradedMode(reason string) {
 	licenseMu.Lock()

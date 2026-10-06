@@ -90,10 +90,10 @@ func main() {
 	fmt.Printf("  版本: %s  构建: %s  提交: %s\n", Version, BuildTime, GitCommit)
 	fmt.Println(strings.Repeat("═", 60))
 	PrintFingerprint()
-	// ── 双模式授权防线（2026-09-01 姜总裁决二）──────────────────────────────
+	// ── 双模式授权防线（2026-09-01 项目组决议二）──────────────────────────────
 	// LICENSE_FAIL_MODE=closed（出厂默认）→ 授权失败：log.Fatal 拒绝启动
 	// LICENSE_FAIL_MODE=open             → 授权失败：降级为只读模式继续运行
-	// open 模式严禁在未与甲方签署《授权到期降级只读补充条款》前开启，
+	// open 模式严禁在未与被许可方签署《授权到期降级只读补充条款》前开启，
 	// 详见《双模式授权配置说明.md》第四节"开启前置条件与法务红线"。
 	failMode := LicenseFailMode()
 	if raw := LicenseFailModeRaw(); raw == "" {
@@ -626,7 +626,7 @@ func main() {
 		json.NewEncoder(w).Encode(replayStats)
 	})
 
-	// 授权与降级状态自证端点（运维可观测，供甲方独立核验当前运行模式）
+	// 授权与降级状态自证端点（运维可观测，供被许可方独立核验当前运行模式）
 	httpMux.HandleFunc("/license/status", func(w http.ResponseWriter, r *http.Request) {
 		dg, reason := IsDegradedMode()
 		w.Header().Set("Content-Type", "application/json")
@@ -644,7 +644,7 @@ func main() {
 		})
 	})
 
-	// 国密 SM3 防篡改链自证端点（运维可观测，供甲方独立核验国密能力真实生效）
+	// 国密 SM3 防篡改链自证端点（运维可观测，供被许可方独立核验国密能力真实生效）
 	httpMux.HandleFunc("/sm3/status", func(w http.ResponseWriter, r *http.Request) {
 		st := SM3Status()
 		if globalUnifiedSM != nil {
