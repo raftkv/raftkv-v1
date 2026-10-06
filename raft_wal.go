@@ -47,7 +47,7 @@ var (
 	walFlushInterval = 5 * time.Millisecond // 批量 fsync 时间窗口
 )
 
-// batch20: 全局 fsync 取证计数器（跨 WAL 重建持久化，原子操作不进写路径热区）
+// 全局 fsync 取证计数器（跨 WAL 重建持久化，原子操作不进写路径热区）
 var (
 	globalFsyncCount        atomic.Int64 // fsync 调用总次数
 	globalFsyncTotalEntries atomic.Int64 // fsync 覆盖的总 entry 数
@@ -295,7 +295,7 @@ func (w *WAL) doFlush() error {
 	}
 
 	// 单次 fsync 批量持久化（N 次 write → 1 次 fsync）
-	// batch20: fsync 取证——记录次数、batch size、耗时（后台 goroutine，非写路径热区）
+	// fsync 取证——记录次数、batch size、耗时（后台 goroutine，非写路径热区）
 	fsyncStart := time.Now()
 	err := w.file.Sync()
 	fsyncUs := time.Since(fsyncStart).Microseconds()

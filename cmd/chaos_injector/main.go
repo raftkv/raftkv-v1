@@ -19,7 +19,7 @@ func main() {
 		timebox       string
 	)
 
-	flag.StringVar(&contractPath, "contract", "", "path to batch21.yaml")
+	flag.StringVar(&contractPath, "contract", "", "path to contract.yaml")
 	flag.StringVar(&evidenceDir, "evidence-dir", "", "path to evidence directory")
 	flag.StringVar(&clusterConfig, "cluster-config", "", "path to cluster config.toml")
 	flag.BoolVar(&fullRerun, "full-rerun", false, "full rerun")

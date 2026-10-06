@@ -88,7 +88,7 @@ func (t *HTTPTransport) RequestVote(req *RequestVoteRequest) (*RequestVoteRespon
 	return &result, nil
 }
 
-// PreVote 发送 PreVote RPC（batch34 T016: pre-vote 探测）
+// PreVote 发送 PreVote RPCpre-vote 探测）
 func (t *HTTPTransport) PreVote(req *RequestVoteRequest) (*RequestVoteResponse, error) {
 	resp, err := t.doRPC(pathPreVote, req)
 	if err != nil {

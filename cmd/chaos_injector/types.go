@@ -107,7 +107,7 @@ type PreVoteForensics struct {
 	TermAfter                int64          `json:"term_after"`
 	TermInflation            int64          `json:"term_inflation"`
 	ElectionCompletionS      float64        `json:"election_completion_s"`
-	Batch22Baseline          string         `json:"batch22_baseline"`
+	BaselineSnapshot          string         `json:"baseline_snapshot"`
 	Timestamp                time.Time      `json:"timestamp"`
 }
 

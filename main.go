@@ -144,7 +144,7 @@ func main() {
 	node.logger = &stdLogger{prefix: fmt.Sprintf("[raft/%s]", nodeID)}
 	node.config.logger = node.logger // : 同步 logger 到集群配置
 
-	// R-04修复A: 设置重连回调 + 启动后台重连循环
+	// 设置重连回调 + 启动后台重连循环
 	// DNS别名丢失后gRPC "produced zero addresses"，需定期重建连接强制DNS重解析
 	peerMgr.SetOnReconnect(node.UpdatePeerClient)
 	peerMgr.StartReconnectLoop()
@@ -318,12 +318,12 @@ func main() {
 			s.ID, s.State, s.Term, s.LeaderID, s.CommitIndex, s.LastApplied,
 			s.LogCount, s.PeerCount, s.VotedFor)
 		s.RUnlock()
-		// R-04修复C: 输出 follower gap + 降级状态
+		// 输出 follower gap + 降级状态
 		gaps := node.FollowerGaps()
 		degraded := node.DegradedFollowers()
 		fmt.Fprintf(w, " gaps=%v degraded=%v", gaps, degraded)
 	})
-	// batch26: /raft/election_metrics 端点 — 选举/心跳可观测性（战役III 预置仪表）
+	// /raft/election_metrics 端点 — 选举/心跳可观测性
 	httpMux.HandleFunc("/raft/election_metrics", func(w http.ResponseWriter, r *http.Request) {
 		s := node.Stats()
 		s.RLock()
@@ -332,7 +332,7 @@ func main() {
 			s.ID, s.ElectionRoundCount, s.HeartbeatLostCount, s.PreVoteRoundCount, s.Term, s.State)
 		s.RUnlock()
 	})
-	// batch22: /raft/entry 端点 — 返回已确认 entry（F3 存活率验证用）
+	// /raft/entry 端点 — 返回已确认 entry（F3 存活率验证用）
 	// 模式1: GET /raft/entry?index=N → 返回单个 entry {index,term,value,commit_index}
 	// 模式2: GET /raft/entry?index=N&count=C → 返回 entry 列表
 	httpMux.HandleFunc("/raft/entry", func(w http.ResponseWriter, r *http.Request) {
@@ -401,7 +401,7 @@ func main() {
 			"entries":      entries,
 		})
 	})
-	// batch23: /raft/pre_vote 端点 — pre-vote 探测（防选票分裂）
+	// /raft/pre_vote 端点 — pre-vote 探测（防选票分裂）
 	httpMux.HandleFunc("/raft/pre_vote", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -454,7 +454,7 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Write([]byte(`{"success":true}`))
 	})
-	// batch35 T031: 分片 InstallSnapshot HTTP 端点
+	// T031: 分片 InstallSnapshot HTTP 端点
 	httpMux.HandleFunc("/raft/install-snapshot-chunk", func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -469,14 +469,14 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
 	})
-	// batch35 T033: 初始化快照传输限流器（rate=100 chunks/s, burst=10）
+	// T033: 初始化快照传输限流器（rate=100 chunks/s, burst=10）
 	node.snapshotThrottle = NewSnapshotThrottle(100, 10)
-	// batch16: 限流器 + metrics 采集器（在 /raft/propose 之前创建，供写路径引用）
+	// 限流器 + metrics 采集器（在 /raft/propose 之前创建，供写路径引用）
 	rateLimiter := NewTokenBucketLimiter(1024, 10000)
 	if v := os.Getenv("RATE_LIMIT_ENABLED"); v == "true" || v == "1" {
 		rateLimiter.Enable()
 	}
-	// batch17: 双层准入 — 在途并发限制器（信号量，约束 L）+ 三口径统计
+	// 双层准入 — 在途并发限制器（信号量，约束 L）+ 三口径统计
 	inFlightCap := int64(600)
 	if v := os.Getenv("IN_FLIGHT_CAP"); v != "" {
 		if cap, err := strconv.ParseInt(v, 10, 64); err == nil && cap > 0 {
@@ -485,16 +485,16 @@ func main() {
 	}
 	inFlightLimiter := NewInFlightLimiter(inFlightCap)
 	triStats := NewTriStats()
-	fmt.Printf("[batch17] 双层准入: in-flight cap=%d, 令牌桶 maxTokens=1024 rate=10000\n", inFlightCap)
+	fmt.Printf("双层准入: in-flight cap=%d, 令牌桶 maxTokens=1024 rate=10000\n", inFlightCap)
 
-	// batch18: 延迟分解埋点
+	// 延迟分解埋点
 	latencyDecomp := InitLatencyDecomp()
 	if v := os.Getenv("LATENCY_DECOMP"); v == "true" || v == "1" {
 		latencyDecomp.SetEnabled(true)
-		fmt.Println("[batch18] 延迟分解埋点已启用")
+		fmt.Println("延迟分解埋点已启用")
 	}
 
-	// batch18 T2: 注入在途利用率查询（自适应 flush 用）
+	// T2: 注入在途利用率查询（自适应 flush 用）
 	node.inFlightUtilFn = inFlightLimiter.Utilization
 	var snapSched *SnapshotScheduler
 	if pipeline != nil {
@@ -519,7 +519,7 @@ func main() {
 			})
 			return
 		}
-		// batch17: 双层准入 — 信号量先判（约束在途并发 L）
+		// 双层准入 — 信号量先判（约束在途并发 L）
 		if !inFlightLimiter.TryAcquire() {
 			triStats.IncShed()
 			w.Header().Set("Content-Type", "application/json")
@@ -528,7 +528,7 @@ func main() {
 			return
 		}
 		defer inFlightLimiter.Release()
-		// batch17: 令牌桶后判（约束速率 λ）
+		// 令牌桶后判（约束速率 λ）
 		if !rateLimiter.Allow() {
 			triStats.IncShed()
 			w.Header().Set("Content-Type", "application/json")
@@ -615,7 +615,7 @@ func main() {
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(stats)
 		})
-		// batch20: WAL fsync 取证端点
+		// WAL fsync 取证端点
 		httpMux.HandleFunc("/wal/stats", func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
 			storage := pipeline.Storage()
@@ -671,7 +671,7 @@ func main() {
 	httpMux.HandleFunc("/latency/stats", handleLatencyStats)
 	httpMux.HandleFunc("/latency/metrics", handleLatencyPrometheus)
 
-	// batch18: 延迟分解端点
+	// 延迟分解端点
 	httpMux.HandleFunc("/latency/decomp", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if globalLatencyDecomp == nil {
@@ -681,11 +681,11 @@ func main() {
 		json.NewEncoder(w).Encode(globalLatencyDecomp.Snapshot())
 	})
 
-	// batch15: 统一 Prometheus /metrics 端点 + 鉴权
+	// 统一 Prometheus /metrics 端点 + 鉴权
 	httpMux.HandleFunc("/metrics", authMiddleware.Middleware(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4")
 		fmt.Fprint(w, metricsCollector.RenderPrometheus())
-		// batch17: 三口径 + 在途并发指标
+		// 三口径 + 在途并发指标
 		fmt.Fprint(w, triStats.RenderPrometheus())
 		fmt.Fprintf(w, "# HELP raft_in_flight Current in-flight requests\n# TYPE raft_in_flight gauge\nraft_in_flight %d\n", inFlightLimiter.InFlight())
 		fmt.Fprintf(w, "# HELP raft_in_flight_cap In-flight capacity limit\n# TYPE raft_in_flight_cap gauge\nraft_in_flight_cap %d\n", inFlightLimiter.Cap())

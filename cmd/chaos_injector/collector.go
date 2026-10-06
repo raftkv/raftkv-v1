@@ -114,7 +114,7 @@ func (c *Collector) CollectPreVoteForensics(scenarioID string) (*PreVoteForensic
 		ScenarioID:       scenarioID,
 		VoteDistribution: make(map[string]int),
 		Timestamp:        time.Now(),
-		Batch22Baseline:  "E1_all_steady=[2.78,3.19,1.60] term_inflation=cascading",
+		BaselineSnapshot:  "E1_all_steady=[2.78,3.19,1.60] term_inflation=cascading",
 	}
 
 	maxTerm := int64(0)

@@ -32,8 +32,8 @@ import (
 
 const (
 	// 选举超时范围（毫秒）
-	electionTimeoutMin = 800  // 最小选举超时（batch34 T016: 150→800，与主模块对齐）
-	electionTimeoutMax = 1200 // 最大选举超时（batch34 T016: 300→1200，与主模块对齐）
+	electionTimeoutMin = 800  // 最小选举超时150→800，与主模块对齐）
+	electionTimeoutMax = 1200 // 最大选举超时300→1200，与主模块对齐）
 
 	// Leader 心跳间隔
 	heartbeatIntervalMin = 50 * time.Millisecond
@@ -352,7 +352,7 @@ func (rn *RaftNode) handleElectionTimeout() {
 }
 
 // =========================================================================
-// pre-vote 探测 — 防止日志落后节点干扰集群（batch34 T016: 从主模块迁移）
+// pre-vote 探测 — 防止日志落后节点干扰集群从主模块迁移）
 // =========================================================================
 
 // preVoteProbe 发起 pre-vote 探测，询问 peers 是否会在正式选举中投票给自己。

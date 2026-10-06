@@ -107,7 +107,7 @@ func (m *BatchSyncManager) SyncLoop() {
 			if !m.config.Enable {
 				continue
 			}
-			m.node.CheckGapAlerts() // R-04修复C: gap>阈值持续10s告警
+			m.node.CheckGapAlerts() // gap>阈值持续10s告警
 			lagging := m.node.IdentifyLaggingFollowers()
 			if len(lagging) == 0 {
 				continue
@@ -198,7 +198,7 @@ func (m *BatchSyncManager) SyncFollower(f LaggingFollower) {
 			if retryCount > m.config.MaxRetries {
 				m.node.logf("[raft/%s] 批量同步失败: follower=%s, startIdx=%d, 重试%d次后放弃",
 					m.node.id, f.PeerID, startIdx, retryCount)
-				m.node.MarkFollowerDegraded(f.PeerID) // R-04修复B: 标记降级
+				m.node.MarkFollowerDegraded(f.PeerID) // 标记降级
 				return
 			}
 			batchSize = batchSize / 2
@@ -211,7 +211,7 @@ func (m *BatchSyncManager) SyncFollower(f LaggingFollower) {
 
 		if resp.Success {
 			m.node.UpdateFollowerProgress(f.PeerID, endIdx)
-			m.node.ClearFollowerDegraded(f.PeerID) // R-04修复B: 同步成功清除降级
+			m.node.ClearFollowerDegraded(f.PeerID) // 同步成功清除降级
 			startIdx = endIdx + 1
 		} else {
 			// 刀一: 标准Raft回退探测 — follower拒绝时递减startIdx和nextIdx，禁止跳回1
@@ -221,7 +221,7 @@ func (m *BatchSyncManager) SyncFollower(f LaggingFollower) {
 			m.node.DecrementNextIdx(f.PeerID)
 			retryCount++
 			if retryCount > m.config.MaxRetries {
-				m.node.MarkFollowerDegraded(f.PeerID) // R-04修复B: 标记降级
+				m.node.MarkFollowerDegraded(f.PeerID) // 标记降级
 				return
 			}
 			batchSize = batchSize / 2

@@ -57,11 +57,11 @@ communication, and a built-in chaos injection toolkit for resilience testing.
 
 All measurements use a 5-node cluster with concurrency=128, write ratio=20%.
 
-| TPS | Batch | Raft State | Duration | Snapshot | Write Failures | Success | P99 Latency | Cluster Status |
-|-----|-------|------------|----------|----------|---------------|---------|-------------|----------------|
-| **841** | batch33-S | pre-Raft baseline | 30min | none | 75,687 (all failed) | 95.00% | 3,100ms | Bleeding: no consensus on write path |
-| **10,579** | batch34-S | post-Raft (election + log replication) | 30min smoke | none | 0 | 100.00% | 67.71ms | Healthy: 5-node consensus |
-| **14,770** | batch35-S | post-Raft + snapshot + log compaction | 1h soak | 53 snapshots | 0 | 100.00% | 40.46ms | Healthy: clean single-process soak |
+| TPS | Run | Raft State | Duration | Snapshot | Write Failures | Success | P99 Latency | Cluster Status |
+|-----|-----|------------|----------|----------|---------------|---------|-------------|----------------|
+| **841** | pre-Raft | baseline | 30min | none | 75,687 (all failed) | 95.00% | 3,100ms | Bleeding: no consensus on write path |
+| **10,579** | post-Raft | election + log replication | 30min smoke | none | 0 | 100.00% | 67.71ms | Healthy: 5-node consensus |
+| **14,770** | post-Raft+snapshot | snapshot + log compaction | 1h soak | 53 snapshots | 0 | 100.00% | 40.46ms | Healthy: clean single-process soak |
 
 ### Improvement Summary
 
@@ -280,7 +280,7 @@ export SM4_KEY="726166746b765f736d34746573743031"
 |--------|------|-------------|
 | `POST` | `/raft/propose` | Propose a command (leader only). Body: raw bytes. Returns `{"success":true,"index":N}`. Optional `?idem_token=<token>` for exactly-once semantics. |
 | `GET` | `/raft/get?index=<N>` | Read log entry at index (any node). Returns `{"found":true,"index":N,"term":T,"command":"..."}`. |
-| `GET` | `/raft/entry?index=<N>` | Read committed entry (batch22, F3 liveness verification). Returns `{"index":N,"term":T,"value":"...","commit_index":C}`. Supports `&count=<C>` for batch reads. |
+| `GET` | `/raft/entry?index=<N>` | Read committed entry (F3 liveness verification). Returns `{"index":N,"term":T,"value":"...","commit_index":C}`. Supports `&count=<C>` for batch reads. |
 
 ### Raft Internals
 
@@ -528,6 +528,11 @@ testing requirements, and the contribution workflow.
 
 All contributions must pass the 10-line regression gate and the 26-case audit
 library before merging.
+
+**Before committing**, run `bash scripts/scan_internal.sh` to verify no internal
+identifiers leaked into the public repo. This tool catches internal codenames,
+batch numbers, defect IDs, and other non-public references — a class of issue
+that has recurred multiple times. The scan must exit 0 (all green).
 
 ---
 

@@ -30,7 +30,7 @@ import (
 // ErrCompacted 日志已压缩：请求的索引 < logStartIndex，调用方应走快照路径
 var ErrCompacted = errors.New("log compacted: requested index < logStartIndex")
 
-// batch24: pre-vote 共享 HTTP 客户端（连接池 + 200ms 超时，减少选举开销）
+// pre-vote 共享 HTTP 客户端（连接池 + 200ms 超时，减少选举开销）
 var preVoteHTTPClient = &http.Client{
 	Timeout: 200 * time.Millisecond,
 	Transport: &http.Transport{
@@ -45,7 +45,7 @@ var preVoteHTTPClient = &http.Client{
 // =========================================================================
 
 const (
-	// 选举超时范围（毫秒）— batch22: 降至 800-1200ms 以实现选举完成 ≤2s
+	// 选举超时范围（毫秒）— 降至 800-1200ms 以实现选举完成 ≤2s
 	// Fix #7 约束维持: 800ms > rpcTimeout(500ms)，防止投票期间其他节点触发新选举
 	electionTimeoutMin = 800  // 最小选举超时
 	electionTimeoutMax = 1200 // 最大选举超时
@@ -131,7 +131,7 @@ type RaftNode struct {
 	consecutiveSuccess       int32
 	currentHeartbeatInterval time.Duration
 
-	// --- batch15 可观测性埋点（atomic，不进入写路径热区）---
+	// --- 可观测性埋点（atomic，不进入写路径热区）---
 	heartbeatIntervalAtomic atomic.Int64 // 心跳间隔纳秒（镜像，供 metrics 采集）
 	electionEventCount      atomic.Int64 // 选举事件计数
 
@@ -151,13 +151,13 @@ type RaftNode struct {
 	// --- 批量闪电同步 ---
 	batchSyncMgr *BatchSyncManager // 批量同步管理器
 
-	// --- R-04修复A: peerClients 线程安全访问 ---
+	// --- peerClients 线程安全访问 ---
 	peerClientsMu sync.RWMutex // 保护 peerClients map 并发更新（重连回调写入）
 
-	// --- R-04修复B: follower 降级标记 ---
+	// --- follower 降级标记 ---
 	degradedFollowers map[string]bool // peerID → 批量同步放弃后标记降级
 
-	// --- R-04修复C: gap 持续告警 ---
+	// --- gap 持续告警 ---
 	gapSince map[string]time.Time // peerID → gap首次超过阈值的时间戳
 
 	// --- 刀三: 快照兜底路径 ---
@@ -165,12 +165,12 @@ type RaftNode struct {
 	getSnapshotData func() ([]byte, int64, int64, error) // 回调：返回 (snapshotData, lastIncludedIndex, lastIncludedTerm, error)
 	installSnapshot func([]byte, int64, int64) error     // 回调：参数 (snapshotData, lastIncludedIndex, lastIncludedTerm)
 
-	// --- batch35 T031/T032: 分片快照传输 ---
+	// --- 分片快照传输 ---
 	snapshotThrottle *SnapshotThrottle                  // T033: 令牌桶限流器
 	snapRecvBuf      map[string]*snapshotReceiveSession // T031: 分片接收会话（leaderID → session）
 	snapRecvMu       sync.Mutex                         // 保护 snapRecvBuf
 
-	// --- batch11: group commit 攒批层 ---
+	// --- group commit 攒批层 ---
 	proposeBatchCh    chan *proposeRequest // Propose 请求通道
 	replicateCh       chan struct{}        // 立即复制触发信号
 	sendHBInFlight    int32                // sendHeartbeats 防重入标志
@@ -183,9 +183,9 @@ type RaftNode struct {
 	batchCountTotal   int64                // 总批次数
 	batchSizeTotal    int64                // 总攒批条数
 	batchSizeHist     [65]int64            // 批大小直方图 (0=1条, 63=64条, 64=溢出)
-	inFlightUtilFn    func() float64       // batch18: 在途利用率查询（自适应 flush 用）
+	inFlightUtilFn    func() float64       // 在途利用率查询（自适应 flush 用）
 
-	// --- batch19: 组提交广播 + 专用复制循环 ---
+	// --- 组提交广播 + 专用复制循环 ---
 	commitBroadcast  *commitBroadcaster // 提交广播通知（替换 commitNotify 的 cap=1 限制）
 	replicateTrigger chan struct{}      // 专用复制循环信号（替换 per-batch CAS 触发）
 	replicateStop    chan struct{}      // 专用复制循环停止信号
@@ -586,7 +586,7 @@ func (rn *RaftNode) ReloadFromSnapshot(snapshotData []byte, lastIncludedIndex in
 }
 
 // =========================================================================
-// batch35 T031/T032: 分片 InstallSnapshot 协议实现
+// T031/T032: 分片 InstallSnapshot 协议实现
 // =========================================================================
 
 // SnapshotThrottle 令牌桶限流器（T033），限制快照传输出站带宽
@@ -864,15 +864,15 @@ func (rn *RaftNode) GetNextIdx(peerID string) int64 {
 	return rn.nextIdx[peerID]
 }
 
-// R-04修复A: UpdatePeerClient 更新指定 peer 的 gRPC 客户端（重连回调调用）
+// UpdatePeerClient 更新指定 peer 的 gRPC 客户端（重连回调调用）
 func (rn *RaftNode) UpdatePeerClient(peerID string, client pb.RaftServiceClient) {
 	rn.peerClientsMu.Lock()
 	rn.peerClients[peerID] = client
 	rn.peerClientsMu.Unlock()
-	rn.logf("[raft/%s] R-04修复A: peer %s 客户端已更新（重连回调）", rn.id, peerID)
+	rn.logf("[raft/%s] peer %s 客户端已更新（重连回调）", rn.id, peerID)
 }
 
-// R-04修复A: GetPeerClient 线程安全获取指定 peer 的 gRPC 客户端
+// GetPeerClient 线程安全获取指定 peer 的 gRPC 客户端
 func (rn *RaftNode) GetPeerClient(peerID string) (pb.RaftServiceClient, bool) {
 	rn.peerClientsMu.RLock()
 	defer rn.peerClientsMu.RUnlock()
@@ -880,27 +880,27 @@ func (rn *RaftNode) GetPeerClient(peerID string) (pb.RaftServiceClient, bool) {
 	return client, ok
 }
 
-// R-04修复B: MarkFollowerDegraded 标记 follower 降级（批量同步放弃）
+// MarkFollowerDegraded 标记 follower 降级（批量同步放弃）
 func (rn *RaftNode) MarkFollowerDegraded(peerID string) {
 	rn.mu.Lock()
 	if !rn.degradedFollowers[peerID] {
 		rn.degradedFollowers[peerID] = true
-		rn.logf("[raft/%s] R-04修复B [WARN] follower %s 标记降级（批量同步放弃）", rn.id, peerID)
+		rn.logf("[raft/%s] [WARN] follower %s 标记降级（批量同步放弃）", rn.id, peerID)
 	}
 	rn.mu.Unlock()
 }
 
-// R-04修复B: ClearFollowerDegraded 清除 follower 降级标记（同步成功）
+// ClearFollowerDegraded 清除 follower 降级标记（同步成功）
 func (rn *RaftNode) ClearFollowerDegraded(peerID string) {
 	rn.mu.Lock()
 	if rn.degradedFollowers[peerID] {
 		delete(rn.degradedFollowers, peerID)
-		rn.logf("[raft/%s] R-04修复B: follower %s 降级已清除（同步恢复）", rn.id, peerID)
+		rn.logf("[raft/%s] follower %s 降级已清除（同步恢复）", rn.id, peerID)
 	}
 	rn.mu.Unlock()
 }
 
-// R-04修复C: CheckGapAlerts 检查 gap 持续告警（gap>阈值持续10s → ERROR日志）
+// CheckGapAlerts 检查 gap 持续告警（gap>阈值持续10s → ERROR日志）
 func (rn *RaftNode) CheckGapAlerts() {
 	rn.mu.Lock()
 	defer rn.mu.Unlock()
@@ -918,7 +918,7 @@ func (rn *RaftNode) CheckGapAlerts() {
 				rn.gapSince[p.ID] = time.Now()
 			}
 			if time.Since(rn.gapSince[p.ID]) > 10*time.Second {
-				rn.logf("[raft/%s] R-04修复C [ERROR] follower %s gap=%d 持续>10s (commitIdx=%d, matchIdx=%d, degraded=%v)",
+				rn.logf("[raft/%s] [ERROR] follower %s gap=%d 持续>10s (commitIdx=%d, matchIdx=%d, degraded=%v)",
 					rn.id, p.ID, gap, rn.commitIdx, rn.matchIdx[p.ID], rn.degradedFollowers[p.ID])
 			}
 		} else {
@@ -927,7 +927,7 @@ func (rn *RaftNode) CheckGapAlerts() {
 	}
 }
 
-// R-04修复C: FollowerGaps 返回每个 follower 的 commit gap
+// FollowerGaps 返回每个 follower 的 commit gap
 func (rn *RaftNode) FollowerGaps() map[string]int64 {
 	rn.mu.RLock()
 	defer rn.mu.RUnlock()
@@ -938,7 +938,7 @@ func (rn *RaftNode) FollowerGaps() map[string]int64 {
 	return gaps
 }
 
-// R-04修复C: DegradedFollowers 返回降级 follower 列表
+// DegradedFollowers 返回降级 follower 列表
 func (rn *RaftNode) DegradedFollowers() []string {
 	rn.mu.RLock()
 	defer rn.mu.RUnlock()
@@ -1104,7 +1104,7 @@ func (rn *RaftNode) handleElectionTimeout() {
 	// 新节点日志未追上 Leader 时，不发起选举，给 Leader 更多时间同步日志
 	// 豁免条件：
 	//   1. 从未见过 Leader（lastHeartbeat zero，全新集群）
-	//   2. Leader 心跳过期（>2s，需接任）— batch22: 从 5s 降至 2s 匹配 800-1200ms 选举超时
+	//   2. Leader 心跳过期（>2s，需接任）— 从 5s 降至 2s 匹配 800-1200ms 选举超时
 	//   3. 连续3次选举失败（选举风暴自愈，强制突破）
 	if !rn.logCaughtUp && !rn.lastHeartbeat.IsZero() && time.Since(rn.lastHeartbeat) < 2*time.Second &&
 		rn.candidateFailCount < 3 {
@@ -1120,7 +1120,7 @@ func (rn *RaftNode) handleElectionTimeout() {
 		rn.logf("[raft/%s] ⚡ 选举超时突破: 连续 %d 次失败，强制 logCaughtUp=true", rn.id, rn.candidateFailCount)
 	}
 
-	// batch23: pre-vote 探测 — 获 quorum 预支持才转 Candidate，防选票分裂
+	// pre-vote 探测 — 获 quorum 预支持才转 Candidate，防选票分裂
 	rn.stats.Lock()
 	rn.stats.PreVoteRoundCount++
 	rn.stats.Unlock()
@@ -1270,7 +1270,7 @@ func (rn *RaftNode) requestVotes(term int64, peers []PeerInfo) {
 		// 启动心跳循环
 		go rn.heartbeatLoop()
 
-		// batch11: 启动 group commit 攒批（锁内调用）
+		// 启动 group commit 攒批（锁内调用）
 		rn.startProposeBatchLocked()
 
 		// 启动批量同步管理器
@@ -1300,7 +1300,7 @@ func (rn *RaftNode) requestVotes(term int64, peers []PeerInfo) {
 }
 
 // =========================================================================
-// batch23: pre-vote 探测 — 防选票分裂
+// pre-vote 探测 — 防选票分裂
 // =========================================================================
 
 func (rn *RaftNode) preVoteProbe(term int64, lastLogIdx int64, lastLogTm int64, peers []PeerInfo) bool {
@@ -1470,7 +1470,7 @@ func (rn *RaftNode) stepDown(higherTerm int64) {
 		rn.mu.Unlock()
 	}
 
-	// batch11: 锁外停止 group commit 攒批（避免死锁：StopProposeBatch 获取 rn.mu）
+	// 锁外停止 group commit 攒批（避免死锁：StopProposeBatch 获取 rn.mu）
 	if needStopBatch {
 		rn.StopProposeBatch()
 	}
@@ -1727,7 +1727,7 @@ func (rn *RaftNode) advanceCommit(term int64) {
 }
 
 // =========================================================================
-// batch11: group commit 攒批层
+// group commit 攒批层
 // =========================================================================
 
 // StartProposeBatch 启动 group commit 攒批循环（Leader 当选后调用）
@@ -1770,7 +1770,7 @@ func (rn *RaftNode) StopProposeBatch() {
 	rn.logf("[raft/%s] group commit 攒批已停止", rn.id)
 }
 
-// replicateLoop batch19: 专用复制循环（仅信号触发，heartbeatLoop 50ms ticker 兜底）
+// replicateLoop 专用复制循环（仅信号触发，heartbeatLoop 50ms ticker 兜底）
 func (rn *RaftNode) replicateLoop() {
 	defer rn.replicateWg.Done()
 	for {
@@ -1801,7 +1801,7 @@ func (rn *RaftNode) proposeBatchLoop() {
 	timer := time.NewTimer(rn.proposeBatchWin)
 	defer timer.Stop()
 
-	// batch18 T2: 自适应 flush 超时
+	// T2: 自适应 flush 超时
 	adaptiveWin := func() time.Duration {
 		if rn.inFlightUtilFn != nil {
 			util := rn.inFlightUtilFn()
@@ -1851,7 +1851,7 @@ func (rn *RaftNode) proposeBatchFlush(batch []*proposeRequest) {
 	n := len(batch)
 	tFlush := time.Now().UnixMicro()
 
-	// batch18 T1: 锁外预构造日志切片，减少锁持有时间
+	// T1: 锁外预构造日志切片，减少锁持有时间
 	rn.mu.RLock()
 	term := rn.term
 	isLeader := rn.state == StateLeader && !rn.walGateClosed
@@ -1907,7 +1907,7 @@ func (rn *RaftNode) proposeBatchFlush(batch []*proposeRequest) {
 
 	// 立即触发复制（不等 50ms 心跳 ticker）
 	tRepl := time.Now().UnixMicro()
-	// batch19: 专用复制循环信号（替换 batch18 T3 的 CAS 触发）
+	// 专用复制循环信号（替换 the CAS 触发）
 	select {
 	case rn.replicateTrigger <- struct{}{}:
 	default:
@@ -1998,7 +1998,7 @@ func (rn *RaftNode) BatchStats() (batchCount, batchSizeTotal int64, hist [65]int
 // =========================================================================
 
 func (rn *RaftNode) Propose(command []byte) (int64, error) {
-	// batch11: group commit 路径（攒批 → 批量追加 → 立即复制 → 按 index 精确等待）
+	// group commit 路径（攒批 → 批量追加 → 立即复制 → 按 index 精确等待）
 	rn.mu.RLock()
 	batchOn := rn.proposeBatchOn
 	rn.mu.RUnlock()
