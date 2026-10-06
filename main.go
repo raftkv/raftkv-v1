@@ -515,7 +515,7 @@ func main() {
 				"success":  false,
 				"error":    "降级只读模式，写入已被拒绝",
 				"reason":   reason,
-				"guidance": "请获取有效授权后以 LICENSE_FAIL_MODE=closed 模式运行。详见 README.md 授权文件生成章节。",
+				"guidance": "获取license请查阅README 'License'章节",
 			})
 			return
 		}

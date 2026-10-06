@@ -332,14 +332,14 @@ func VerifyLicense() error {
 	fp := GetMachineFingerprint()
 	data, err := os.ReadFile(licenseFile)
 	if err != nil {
-		return fmt.Errorf("未找到授权文件 license.key: %w\n当前机器指纹: %s\n请使用 generate_license_tool 生成授权文件", err, fp)
+		return fmt.Errorf("未找到授权文件 license.key: %w\n当前机器指纹: %s\n获取license请查阅README 'License'章节", err, fp)
 	}
 
 	rawData := strings.TrimSpace(string(data))
 	info := parseLicenseFile(rawData)
 
 	if info.Signature == "" {
-		return fmt.Errorf("授权文件缺少RSA签名，拒绝启动(Fail-Closed)\n当前机器指纹: %s\n请使用 generate_license_tool 生成带RSA-2048签名的授权文件", fp)
+		return fmt.Errorf("授权文件缺少RSA签名，拒绝启动(Fail-Closed)\n当前机器指纹: %s\n获取license请查阅README 'License'章节", fp)
 	}
 	if err := verifyRSASignature(info); err != nil {
 		return fmt.Errorf("授权验证失败: %w", err)

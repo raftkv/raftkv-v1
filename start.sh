@@ -17,12 +17,7 @@ fi
 
 if [ ! -f "./license.key" ]; then
     echo "[警告] 未找到 license.key 授权文件"
-    echo "程序将启动失败，请先使用 generate_license_tool 生成授权"
-    echo ""
-    echo "步骤："
-    echo "  1. 先运行 ./gateway 查看机器指纹"
-    echo "  2. 在授权机上运行: ./generate_license_tool <指纹>"
-    echo "  3. 将生成的 license.key 复制到本目录"
+    echo "获取license请查阅README 'License'章节"
     echo ""
     read -p "是否仍要继续启动？(y/N): " confirm
     if [ "$confirm" != "y" ] && [ "$confirm" != "Y" ]; then
