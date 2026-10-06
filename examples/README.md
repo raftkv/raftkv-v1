@@ -36,8 +36,8 @@ docker compose -f examples/docker-compose-quickstart.yml down -v
 for demo purposes. In this mode:
 - Raft elections, heartbeats, and read-only queries work normally
 - Write requests are rejected (HTTP 503)
-- To enable writes, generate a license key using `cmd/license-tool` and set
-  `LICENSE_FAIL_MODE=closed`
+- To enable writes, obtain a commercial license key and set
+  `LICENSE_FAIL_MODE=closed`. See README.md "Production Deployment" for details.
 
 ## Port Mapping
 

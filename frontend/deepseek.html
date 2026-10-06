@@ -161,7 +161,7 @@ body{background:var(--bg);font-family:'Rajdhani','Noto Sans SC','JetBrains Mono'
 <div class="pnl pnl-r">
   <div class="ph"><span class="ic">&#x029D7;</span>&#x786E;&#x5B9A;&#x6027;&#x5BA1;&#x8BA1;<span class="bdg">SM3</span></div>
   <div class="sr"><span class="lbl">SM3&#x94FE;&#x6DF1;</span><span class="val v-gd" id="smDepth">47,281</span><span class="lbl">&#x5E8F;&#x5217;</span><span class="val v-pr" id="smSeq">#12847</span></div>
-  <div class="sr"><span class="lbl">&#x6700;&#x65B0;&#x54C8;&#x5E0C;</span><span class="fp-hash" id="smHash">0xda235e8a1b4c...f97d</span></div>
+  <div class="sr"><span class="lbl">&#x6700;&#x65B0;&#x54C8;&#x5E0C;</span><span class="fp-hash" id="smHash">0xdaraft8a1b4c...f97d</span></div>
   <div class="sr"><span class="lbl">&#x94FE;&#x5B8C;&#x6574;&#x6027;</span><span class="val v-ok" id="smVerify">&#x2713; VERIFIED</span><span class="lbl">&#x7B97;&#x6CD5;</span><span class="val v-pr">SM3 (GM/T 0004)</span></div>
   <div class="dv"></div>
   <div class="chart-sm" id="chFingerprint"></div>
@@ -199,7 +199,7 @@ var CLUSTER_NODES=[
 var TASK_STATES=['pending','scheduled','running','running','running','running','running','running','running','running','running','running','complete','complete','complete'];
 var TASK_IDS=0;
 
-function mkTask(){TASK_IDS++;return{id:'tu-'+String(TASK_IDS).padStart(6,'0'),phase:TASK_STATES[Math.floor(Math.random()*TASK_STATES.length)],node:CLUSTER_NODES[Math.floor(Math.random()*CLUSTER_NODES.length)].id,model:Math.random()>.5?'DeepSeek-V3':'DeepSeek-R1',temp:0,seed:235,moe:'fixed',prec:'fp8',tokens:Math.floor(Math.random()*5000),sm3:'0x'+Array(16).fill(0).map(function(){return Math.floor(Math.random()*16).toString(16)}).join(''),time:Date.now()}}
+function mkTask(){TASK_IDS++;return{id:'tu-'+String(TASK_IDS).padStart(6,'0'),phase:TASK_STATES[Math.floor(Math.random()*TASK_STATES.length)],node:CLUSTER_NODES[Math.floor(Math.random()*CLUSTER_NODES.length)].id,model:Math.random()>.5?'DeepSeek-V3':'DeepSeek-R1',temp:0,seed:0,moe:'fixed',prec:'fp8',tokens:Math.floor(Math.random()*5000),sm3:'0x'+Array(16).fill(0).map(function(){return Math.floor(Math.random()*16).toString(16)}).join(''),time:Date.now()}}
 var tasks=[],fingerprints=[];
 for(var i=0;i<50;i++){var t=mkTask();tasks.push(t);if(t.phase==='complete')fingerprints.push(t)}
 while(fingerprints.length<30){var tf=mkTask();tf.phase='complete';fingerprints.push(tf)}

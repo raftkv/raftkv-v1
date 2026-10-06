@@ -929,7 +929,7 @@ body {
           <span class="s-lbl">&#x8FD0;&#x884C;&#x6A21;&#x5F0F;</span>
           <span class="s-val ok" id="kMode">&#x786E;&#x5B9A;&#x6027;&#x4F18;&#x5148;</span>
           <span class="s-lbl">&#x8D44;&#x6E90;</span>
-          <span class="s-val cy" id="kRes">16 Agent&#x00B7;235&#x5F15;&#x64CE;</span>
+          <span class="s-val cy" id="kRes">16 Agent&#x00B7;RaftKV&#x5F15;&#x64CE;</span>
         </div>
         <div class="stat-row">
           <span class="s-lbl">&#x5065;&#x5EB7;&#x5EA6;</span>
@@ -945,7 +945,7 @@ body {
       <div class="p-hd">
         <span class="icon">&#x238D;</span>
         &#x786E;&#x5B9A;&#x6027;&#x5F15;&#x64CE;
-        <span class="badge">235&#x00B7;ENGINE</span>
+        <span class="badge">RaftKV&#x00B7;ENGINE</span>
       </div>
       <div class="p-bd">
         <!-- 确定性参数状态 -->
@@ -966,7 +966,7 @@ body {
         </div>
         <div class="stat-row">
           <span class="s-lbl">Seed</span>
-          <span class="s-val pr">0x235DAI&#x00B7;FIXED</span>
+          <span class="s-val pr">0xRaftKV&#x00B7;FIXED</span>
           <span class="s-lbl" style="color:var(--gr)">&#x25CF; LOCKED</span>
         </div>
         <div class="divider"></div>
@@ -1221,7 +1221,7 @@ body {
         <!-- 哈希链存证 -->
         <div class="stat-row">
           <span class="s-lbl">&#x54C8;&#x5E0C;&#x94FE;</span>
-          <span class="s-val pr" id="sHash" style="font-size:.50rem">0xda235...f8a</span>
+          <span class="s-val pr" id="sHash" style="font-size:.50rem">0xdaraft...f8a</span>
         </div>
         <div class="stat-row">
           <span class="s-lbl">&#x94FE;&#x6DF1;</span>
@@ -1233,7 +1233,7 @@ body {
           <span class="s-lbl">&#x5B58;&#x8BC1;&#x7B49;&#x7EA7;</span>
           <span class="s-val gr">&#x4E09;&#x7EA7;&#x4FDD;&#x62A4;</span>
           <span class="s-lbl">&#x5E8F;&#x5217;</span>
-          <span class="s-val gd" id="sSeq">#235</span>
+          <span class="s-val gd" id="sSeq">#RaftKV</span>
         </div>
         <!-- 按钮 -->
         <div class="btn-row">
@@ -1310,15 +1310,15 @@ function tickClk() {
 tickClk(); setInterval(tickClk, 1000);
 
 // =====================================================
-// PART 3: S235 State — Global System State
+// PART 3: SRaftState State — Global System State
 // =====================================================
-var S235 = {
+var SRaftState = {
   // Deterministic engine parameters (NEVER modified by boost or chaos)
   engine: {
     temperature: 0.0,
     moeMode: 'FIXED-SEED',
     fpPrecision: 'FP64',
-    seed: '0x235DAI',
+    seed: '0xRaftKV',
     stepCount: 7,
     stepNames: ['Orchstrator','Planner','Decomposer','Executor','Verifier','Recovery','Finalizer'],
     // Base decay rates (per step, before per-Die variation)
@@ -1367,7 +1367,7 @@ var S235 = {
 
   // Hash chain
   hashDepth: 15592,
-  hashSequence: 235,
+  hashSequence: 1,
 
   // All 16 Dies
   dies: [],
@@ -1441,11 +1441,11 @@ function tickNoise(range) {
  * Effective decay = baseDecay * die.decayModifier * (1 + chaos.penalty)
  */
 function calcPrecision(die, step) {
-  var eng = S235.engine;
+  var eng = SRaftState.engine;
   var base = 97.0;
 
   // Effective decay per step (higher = faster degradation)
-  var chaosPenalty = S235.chaos.active ? S235.chaos.severity * 0.6 : 0;
+  var chaosPenalty = SRaftState.chaos.active ? SRaftState.chaos.severity * 0.6 : 0;
   var effDecay = eng.basePrecisionDecay * die.decayModifier * (1 + chaosPenalty);
 
   var precision = base - step * effDecay + tickNoise(1.5);
@@ -1454,9 +1454,9 @@ function calcPrecision(die, step) {
   if (step === 5 && die.status === 'recovering') precision += 3.0;
 
   // Orchestration boost (does NOT change deterministic params)
-  if (S235.boost.adaptiveRecovery) precision += 0.6;
-  if (S235.boost.driftSuppression)   precision += 0.4;
-  if (S235.boost.autoCalibration)    precision += 0.3;
+  if (SRaftState.boost.adaptiveRecovery) precision += 0.6;
+  if (SRaftState.boost.driftSuppression)   precision += 0.4;
+  if (SRaftState.boost.autoCalibration)    precision += 0.3;
 
   // Chaos crash: massive drop
   if (die.status === 'crashed') {
@@ -1471,17 +1471,17 @@ function calcPrecision(die, step) {
  * Model:  accuracy(step) = 98 - step * effectiveDecay + noise + boost
  */
 function calcAccuracy(die, step) {
-  var eng = S235.engine;
+  var eng = SRaftState.engine;
   var base = 98.0;
 
-  var chaosPenalty = S235.chaos.active ? S235.chaos.severity * 0.5 : 0;
+  var chaosPenalty = SRaftState.chaos.active ? SRaftState.chaos.severity * 0.5 : 0;
   var effDecay = eng.baseAccuracyDecay * die.decayModifier * (1 + chaosPenalty);
 
   var accuracy = base - step * effDecay + tickNoise(1.2);
 
   if (step === 5 && die.status === 'recovering') accuracy += 2.5;
-  if (S235.boost.hallucinationFilter)  accuracy += 0.8;
-  if (S235.boost.consensusReinforcement) accuracy += 0.5;
+  if (SRaftState.boost.hallucinationFilter)  accuracy += 0.8;
+  if (SRaftState.boost.consensusReinforcement) accuracy += 0.5;
 
   if (die.status === 'crashed') {
     accuracy = 30 + Math.random() * 30; // 30-60%
@@ -1498,9 +1498,9 @@ function clamp(v, lo, hi) {
 // PART 6: Die Progression — Advance Through Pipeline
 // =====================================================
 function advanceDie(die) {
-  var eng = S235.engine;
-  var precThreshold = S235.boost.adaptiveRecovery ? 82 : 78;
-  var accThreshold  = S235.boost.hallucinationFilter  ? 85 : 80;
+  var eng = SRaftState.engine;
+  var precThreshold = SRaftState.boost.adaptiveRecovery ? 82 : 78;
+  var accThreshold  = SRaftState.boost.hallucinationFilter  ? 85 : 80;
 
   switch (die.status) {
 
@@ -1541,9 +1541,9 @@ function advanceDie(die) {
           // Completed all 7 steps
           die.status = 'complete';
           die.completedRuns++;
-          S235.totalEvents++;
-          S235.hashDepth++;
-          S235.hashSequence++;
+          SRaftState.totalEvents++;
+          SRaftState.hashDepth++;
+          SRaftState.hashSequence++;
           addEvent('die', die.name + ' 完成E2E运行 #' + die.completedRuns +
             ' · 终点Precision=' + die.precision.toFixed(1) + '% · Accuracy=' + die.accuracy.toFixed(1) + '%', 'boost');
           // Restart after a brief cooldown
@@ -1575,7 +1575,7 @@ function advanceDie(die) {
       break;
 
     case 'crashed':
-      if (!S235.chaos.active) {
+      if (!SRaftState.chaos.active) {
         // Chaos ended — attempt auto-recovery
         die.status = 'recovering';
         die.precision = 40 + Math.random() * 20;
@@ -1594,13 +1594,13 @@ function advanceDie(die) {
 // PART 7: simTick — Main Simulation Loop
 // =====================================================
 function simTick() {
-  S235.tickCount++;
+  SRaftState.tickCount++;
 
   // Advance each Die (process at most 3 Dies per tick to stagger progress)
   var runsThisTick = 0;
   var maxPerTick = 3;
-  for (var i = 0; i < S235.dies.length; i++) {
-    var die = S235.dies[i];
+  for (var i = 0; i < SRaftState.dies.length; i++) {
+    var die = SRaftState.dies[i];
     if (die.status === 'complete' || runsThisTick >= maxPerTick) continue;
     // Probability of advancing this tick depends on Die's speed factor
     if (Math.random() < die.speedFactor * 0.6 || die.status === 'crashed' || die.status === 'recovering') {
@@ -1621,21 +1621,21 @@ function simTick() {
   renderEvents();
 
   // Every 3 ticks, generate a random system event
-  if (S235.tickCount % 3 === 0) generateRandomEvent();
+  if (SRaftState.tickCount % 3 === 0) generateRandomEvent();
 
   // Check if chaos recovery timeout elapsed
-  if (S235.chaos.active && Date.now() >= S235.chaos.endTime) {
+  if (SRaftState.chaos.active && Date.now() >= SRaftState.chaos.endTime) {
     chaosRecover();
   }
 
   // Update uptime
-  S235.uptimeHours = 1286 + Math.floor(S235.tickCount / 240);
+  SRaftState.uptimeHours = 1286 + Math.floor(SRaftState.tickCount / 240);
 
   // Push time-series history
-  var h = S235.history;
-  h.detScore.push(S235.metrics.determinismScore);
-  h.precScore.push(S235.metrics.precisionScore);
-  h.accScore.push(S235.metrics.accuracyScore);
+  var h = SRaftState.history;
+  h.detScore.push(SRaftState.metrics.determinismScore);
+  h.precScore.push(SRaftState.metrics.precisionScore);
+  h.accScore.push(SRaftState.metrics.accuracyScore);
   if (h.detScore.length > 30) { h.detScore.shift(); h.precScore.shift(); h.accScore.shift(); }
 
   // Update charts
@@ -1646,12 +1646,12 @@ function simTick() {
 // PART 8: Aggregate Metrics Computation
 // =====================================================
 function computeAggregates() {
-  var m = S235.metrics;
+  var m = SRaftState.metrics;
   var totalRunning = 0, totalComplete = 0, totalCrashed = 0;
   var sumPrec = 0, sumAcc = 0, sumLat = 0, sumThru = 0, precCount = 0;
 
-  for (var i = 0; i < S235.dies.length; i++) {
-    var d = S235.dies[i];
+  for (var i = 0; i < SRaftState.dies.length; i++) {
+    var d = SRaftState.dies[i];
     if (d.status === 'running' || d.status === 'recovering') totalRunning++;
     if (d.status === 'complete') totalComplete++;
     if (d.status === 'crashed')   totalCrashed++;
@@ -1673,23 +1673,23 @@ function computeAggregates() {
   }
 
   // E2E determinism: based on how many Dies have reached completion
-  var aliveDies = S235.dieCount - totalCrashed;
-  var activeFactor = aliveDies / S235.dieCount;
+  var aliveDies = SRaftState.dieCount - totalCrashed;
+  var activeFactor = aliveDies / SRaftState.dieCount;
 
   // Step success rate: influenced by chaos
-  m.stepSuccessRate = S235.chaos.active
-    ? 85 - S235.chaos.severity * 25 + tickNoise(4)
+  m.stepSuccessRate = SRaftState.chaos.active
+    ? 85 - SRaftState.chaos.severity * 25 + tickNoise(4)
     : 93 + tickNoise(2);
 
-  m.determinismScore = S235.chaos.active
-    ? 85 - S235.chaos.severity * 30 + tickNoise(6)
+  m.determinismScore = SRaftState.chaos.active
+    ? 85 - SRaftState.chaos.severity * 30 + tickNoise(6)
     : 99 + tickNoise(0.8);
 
   // E2E determinism = pStep^7 * activeFactor
-  var e2eBase = Math.pow(clamp(m.stepSuccessRate, 40, 100) / 100, S235.engine.stepCount) * 100;
+  var e2eBase = Math.pow(clamp(m.stepSuccessRate, 40, 100) / 100, SRaftState.engine.stepCount) * 100;
   m.e2eDeterminism = e2eBase * activeFactor;
 
-  m.interceptRate = S235.chaos.active
+  m.interceptRate = SRaftState.chaos.active
     ? 92 + tickNoise(4)
     : 99.3 + tickNoise(0.5);
 
@@ -1701,66 +1701,66 @@ function computeAggregates() {
 // PART 9: Chaos Injection — System Crash Simulation
 // =====================================================
 function chaosInject(severity) {
-  if (S235.chaos.active) {
+  if (SRaftState.chaos.active) {
     addEvent('sys', '混沌注入被拒绝: 系统已处于混沌状态', 'drift');
     return;
   }
 
   severity = severity || 1.0;
-  S235.chaos.active = true;
-  S235.chaos.severity = severity;
-  S235.chaos.endTime = Date.now() + S235.chaos.duration;
+  SRaftState.chaos.active = true;
+  SRaftState.chaos.severity = severity;
+  SRaftState.chaos.endTime = Date.now() + SRaftState.chaos.duration;
 
   // Select 3 to 8 random Dies to crash (fewer at lower severity)
   var crashCount = Math.floor(3 + severity * 5);
-  crashCount = Math.min(crashCount, S235.dieCount);
+  crashCount = Math.min(crashCount, SRaftState.dieCount);
 
   var indices = [];
-  for (var i = 0; i < S235.dies.length; i++) {
+  for (var i = 0; i < SRaftState.dies.length; i++) {
     // Less resilient Dies are more likely to be selected
-    if (S235.dies[i].resilience < severity * 0.6) indices.push(i);
+    if (SRaftState.dies[i].resilience < severity * 0.6) indices.push(i);
   }
 
   // Shuffle and pick
   shuffle(indices);
   var affected = indices.slice(0, crashCount);
-  S235.chaos.affectedDies = affected;
+  SRaftState.chaos.affectedDies = affected;
 
   // Crash the selected Dies
   for (var j = 0; j < affected.length; j++) {
-    var die = S235.dies[affected[j]];
+    var die = SRaftState.dies[affected[j]];
     die.status = 'crashed';
     die.precision = 25 + Math.random() * 25;
     die.accuracy  = 30 + Math.random() * 25;
   }
 
   addEvent('sys', '!!! 混沌注入 · 严重度=' + (severity * 100).toFixed(0) + '% · ' +
-    crashCount + '个Die崩溃 · 自动恢复=' + (S235.chaos.duration / 1000) + 's', 'drift');
+    crashCount + '个Die崩溃 · 自动恢复=' + (SRaftState.chaos.duration / 1000) + 's', 'drift');
   // SM3 chain log
   SM3Chain.log('chaos_inject', '混沌注入·严重度=' + (severity * 100).toFixed(0) + '%·' + crashCount + 'Die崩溃');
-  addEvent('sys', '受影响Die: ' + affected.map(function(ii) { return S235.dies[ii].name; }).join(', '), 'drift');
+  addEvent('sys', '受影响Die: ' + affected.map(function(ii) { return SRaftState.dies[ii].name; }).join(', '), 'drift');
 
   // Schedule auto-recovery
-  if (S235.chaos.recoverTimer) clearTimeout(S235.chaos.recoverTimer);
-  S235.chaos.recoverTimer = setTimeout(chaosRecover, S235.chaos.duration);
+  if (SRaftState.chaos.recoverTimer) clearTimeout(SRaftState.chaos.recoverTimer);
+  SRaftState.chaos.recoverTimer = setTimeout(chaosRecover, SRaftState.chaos.duration);
 
   updateAll();
 }
 
 function chaosRecover() {
-  if (!S235.chaos.active) return;
+  if (!SRaftState.chaos.active) return;
 
-  S235.chaos.active = false;
-  S235.chaos.severity = 0;
-  if (S235.chaos.recoverTimer) {
-    clearTimeout(S235.chaos.recoverTimer);
-    S235.chaos.recoverTimer = null;
+  SRaftState.chaos.active = false;
+  SRaftState.chaos.severity = 0;
+  if (SRaftState.chaos.recoverTimer) {
+    clearTimeout(SRaftState.chaos.recoverTimer);
+    SRaftState.chaos.recoverTimer = null;
   }
 
   // Move crashed Dies to recovering
   var recoveredCount = 0;
-  for (var i = 0; i < S235.chaos.affectedDies.length; i++) {
-    var die = S235.dies[S235.chaos.affectedDies[i]];
+  for (var i = 0; i < SRaftState.chaos.affectedDies.length; i++) {
+    var die = SRaftState.dies[SRaftState.chaos.affectedDies[i]];
     if (die.status === 'crashed') {
       die.status = 'recovering';
       die.precision = 40 + Math.random() * 20;
@@ -1769,7 +1769,7 @@ function chaosRecover() {
     }
   }
 
-  S235.chaos.affectedDies = [];
+  SRaftState.chaos.affectedDies = [];
 
   addEvent('sys', '混沌恢复完成 · ' + recoveredCount + '个Die进入Recovery · 系统恢复正常', 'boost');
   // SM3 chain log
@@ -1794,14 +1794,14 @@ function addEvent(cat, msg, level) {
     msg: msg,
     level: level || 'info'
   };
-  S235.events.unshift(evt);
-  if (S235.events.length > 200) S235.events.pop();
-  S235.totalEvents++;
+  SRaftState.events.unshift(evt);
+  if (SRaftState.events.length > 200) SRaftState.events.pop();
+  SRaftState.totalEvents++;
 }
 
 function generateRandomEvent() {
   var pool = [
-    {m: '精度验证通过·全局FineScore=' + (S235.metrics.precisionScore || 92).toFixed(1) + '%', l: 'info', c: 'precision'},
+    {m: '精度验证通过·全局FineScore=' + (SRaftState.metrics.precisionScore || 92).toFixed(1) + '%', l: 'info', c: 'precision'},
     {m: '准确率校验完成·语义一致性达标', l: 'info', c: 'accuracy'},
     {m: '多Agent共识轮次·投票一致率88%', l: 'info', c: 'consensus'},
     {m: '自适应Recovery触发·回滚成功', l: 'info', c: 'boost'},
@@ -1815,7 +1815,7 @@ function generateRandomEvent() {
 }
 
 function setEvtCat(cat) {
-  S235.evtFilter = cat;
+  SRaftState.evtFilter = cat;
   var all = document.querySelectorAll('.ct-flt');
   for (var i = 0; i < all.length; i++) {
     all[i].className = all[i].getAttribute('data-cat') === cat ? 'ct-flt on' : 'ct-flt';
@@ -1826,9 +1826,9 @@ function setEvtCat(cat) {
 function renderEvents() {
   var lst = document.getElementById('evList');
   if (!lst) return;
-  var filtered = S235.events;
-  if (S235.evtFilter !== 'all') {
-    filtered = S235.events.filter(function(e) { return e.cat === S235.evtFilter; });
+  var filtered = SRaftState.events;
+  if (SRaftState.evtFilter !== 'all') {
+    filtered = SRaftState.events.filter(function(e) { return e.cat === SRaftState.evtFilter; });
   }
   var page = filtered.slice(0, 6);
   var html = '';
@@ -1859,7 +1859,7 @@ function renderEvents() {
 // PART 11: UI Update Functions
 // =====================================================
 function updatePanel1() {
-  var m = S235.metrics;
+  var m = SRaftState.metrics;
   setEl('kDet', m.determinismScore.toFixed(1));
   setEl('kStep', m.stepSuccessRate.toFixed(1));
   setEl('kE2E', m.e2eDeterminism.toFixed(1));
@@ -1867,31 +1867,31 @@ function updatePanel1() {
   setEl('kAcc', m.accuracyScore.toFixed(1));
   setEl('kInt', m.interceptRate.toFixed(1));
 
-  var crashedCount = S235.dies.filter(function(d){return d.status==='crashed'}).length;
-  var runningCount = S235.dies.filter(function(d){return d.status==='running'||d.status==='recovering'}).length;
+  var crashedCount = SRaftState.dies.filter(function(d){return d.status==='crashed'}).length;
+  var runningCount = SRaftState.dies.filter(function(d){return d.status==='running'||d.status==='recovering'}).length;
   var healthColor = crashedCount > 3 ? 'err' : crashedCount > 0 ? 'warn' : 'ok';
   var healthText  = crashedCount > 3 ? '危险 (' + (100 - crashedCount * 6) + '/100)' :
                     crashedCount > 0 ? '受损 (' + (97 - crashedCount * 6) + '/100)' : '优秀 (97/100)';
-  var modeText = S235.chaos.active ? '混沌恢复中' : '确定性优先';
-  var modeColor = S235.chaos.active ? 'warn' : 'ok';
-  var resText = S235.dieCount + ' Agent·235引擎';
+  var modeText = SRaftState.chaos.active ? '混沌恢复中' : '确定性优先';
+  var modeColor = SRaftState.chaos.active ? 'warn' : 'ok';
+  var resText = SRaftState.dieCount + ' Agent·RaftKV引擎';
 
   setElCls('kMode', modeColor);
   setEl('kMode', modeText);
   setEl('kRes', resText);
   setElCls('kHealth', healthColor);
   setEl('kHealth', healthText);
-  setEl('kUptime', S235.uptimeHours + 'h');
+  setEl('kUptime', SRaftState.uptimeHours + 'h');
 }
 
 function updatePanel2() {
-  var m = S235.metrics;
-  var precPct = S235.chaos.active ? 45 : Math.min(95, m.precisionScore);
-  var accPct  = S235.chaos.active ? 50 : Math.min(97, m.accuracyScore);
-  var recRate = S235.engine.baseRecoveryRate * 100;
+  var m = SRaftState.metrics;
+  var precPct = SRaftState.chaos.active ? 45 : Math.min(95, m.precisionScore);
+  var accPct  = SRaftState.chaos.active ? 50 : Math.min(97, m.accuracyScore);
+  var recRate = SRaftState.engine.baseRecoveryRate * 100;
 
-  setEl('eDecayPrec', '-' + (S235.chaos.active ? (S235.engine.basePrecisionDecay * 2.5) : S235.engine.basePrecisionDecay).toFixed(1) + '%/step');
-  setEl('eDecayAcc',  '-' + (S235.chaos.active ? (S235.engine.baseAccuracyDecay * 2.0) : S235.engine.baseAccuracyDecay).toFixed(1) + '%/step');
+  setEl('eDecayPrec', '-' + (SRaftState.chaos.active ? (SRaftState.engine.basePrecisionDecay * 2.5) : SRaftState.engine.basePrecisionDecay).toFixed(1) + '%/step');
+  setEl('eDecayAcc',  '-' + (SRaftState.chaos.active ? (SRaftState.engine.baseAccuracyDecay * 2.0) : SRaftState.engine.baseAccuracyDecay).toFixed(1) + '%/step');
   setEl('eRecRate', recRate.toFixed(1) + '%');
 
   var ePrecBar = document.getElementById('eBarPrec');
@@ -1903,9 +1903,9 @@ function updatePanel2() {
 }
 
 function updatePanel3() {
-  var running = S235.dies.filter(function(d){return d.status==='running'||d.status==='recovering'}).length;
-  var crashed = S235.dies.filter(function(d){return d.status==='crashed'}).length;
-  var complete = S235.dies.filter(function(d){return d.status==='complete'}).length;
+  var running = SRaftState.dies.filter(function(d){return d.status==='running'||d.status==='recovering'}).length;
+  var crashed = SRaftState.dies.filter(function(d){return d.status==='crashed'}).length;
+  var complete = SRaftState.dies.filter(function(d){return d.status==='complete'}).length;
   var statusText = crashed > 3 ? '阻塞' : crashed > 0 ? '部分受损' : '流通';
   var statusCls  = crashed > 3 ? 'err' : crashed > 0 ? 'warn' : 'ok';
   setElCls('plStatus', statusCls);
@@ -1913,24 +1913,24 @@ function updatePanel3() {
 
   // Current bottleneck step
   var maxStep = 0;
-  for (var i = 0; i < S235.dies.length; i++) {
-    if (S235.dies[i].currentStep > maxStep && S235.dies[i].status !== 'crashed') {
-      maxStep = S235.dies[i].currentStep;
+  for (var i = 0; i < SRaftState.dies.length; i++) {
+    if (SRaftState.dies[i].currentStep > maxStep && SRaftState.dies[i].status !== 'crashed') {
+      maxStep = SRaftState.dies[i].currentStep;
     }
   }
-  var eng = S235.engine;
+  var eng = SRaftState.engine;
   var curStepName = maxStep >= 0 && maxStep < eng.stepCount ? eng.stepNames[maxStep] : '—';
   setEl('plStep', curStepName + ' (' + (maxStep + 1) + '/' + eng.stepCount + ')');
 
-  var e2eWithRecovery = Math.min(99, S235.metrics.e2eDeterminism + 7.8);
-  var recoveryGain = (e2eWithRecovery - S235.metrics.e2eDeterminism);
-  setEl('plE2E', S235.metrics.e2eDeterminism.toFixed(1) + '%');
+  var e2eWithRecovery = Math.min(99, SRaftState.metrics.e2eDeterminism + 7.8);
+  var recoveryGain = (e2eWithRecovery - SRaftState.metrics.e2eDeterminism);
+  setEl('plE2E', SRaftState.metrics.e2eDeterminism.toFixed(1) + '%');
   setEl('plRecovery', e2eWithRecovery.toFixed(1) + '% (+' + recoveryGain.toFixed(1) + '%)');
 }
 
 function updatePanel6() {
-  var m = S235.metrics;
-  var chaosP99 = S235.chaos.active ? 80 + Math.random() * 60 : m.avgLatency + tickNoise(4);
+  var m = SRaftState.metrics;
+  var chaosP99 = SRaftState.chaos.active ? 80 + Math.random() * 60 : m.avgLatency + tickNoise(4);
   setEl('sP99', Math.round(chaosP99) + 'ms');
   setEl('sThru', m.totalThroughput.toLocaleString() + ' t/s');
   setElCls('sCpu', m.cpuUsage > 70 ? 'warn' : 'ok');
@@ -2225,12 +2225,12 @@ function renderDieGrid() {
   var grid = document.getElementById('dieGrid');
   if (!grid) return;
   var html = '';
-  for (var i = 0; i < S235.dies.length; i++) {
-    var d = S235.dies[i];
+  for (var i = 0; i < SRaftState.dies.length; i++) {
+    var d = SRaftState.dies[i];
     var statusCls = d.status;
     var stepLabel = d.currentStep >= 0 ? 'S' + d.currentStep : '—';
     var precDisplay = d.status === 'crashed' ? '!!' : d.precision.toFixed(0);
-    var title = d.name + ' | Step=' + (d.currentStep >= 0 ? S235.engine.stepNames[d.currentStep] : 'Idle') +
+    var title = d.name + ' | Step=' + (d.currentStep >= 0 ? SRaftState.engine.stepNames[d.currentStep] : 'Idle') +
                 ' | Prec=' + precDisplay + '% | Acc=' + (d.status === 'crashed' ? '!!' : d.accuracy.toFixed(0)) + '%';
     html += '<div class="die-chip ' + statusCls + '" title="' + title + '">' +
             '<span class="dn">' + d.name + '</span>' +
@@ -2260,14 +2260,14 @@ function setElCls(id, newCls) {
 // PART 14: Button Action Handlers
 // =====================================================
 function boostAll(on) {
-  for (var k in S235.boost) {
-    if (S235.boost.hasOwnProperty(k)) S235.boost[k] = on;
+  for (var k in SRaftState.boost) {
+    if (SRaftState.boost.hasOwnProperty(k)) SRaftState.boost[k] = on;
   }
   // Update toggle UI
   var toggles = document.querySelectorAll('.tgl');
   for (var i = 0; i < toggles.length; i++) {
     var key = getToggleKey(toggles[i].textContent.trim());
-    toggles[i].className = S235.boost[key] ? 'tgl on' : 'tgl';
+    toggles[i].className = SRaftState.boost[key] ? 'tgl on' : 'tgl';
   }
   addEvent('boost', on ? '一键全开·5项增强引擎激活' : '一键全关·增强引擎复位', on ? 'boost' : 'info');
   updateAll();
@@ -2289,10 +2289,10 @@ document.addEventListener('DOMContentLoaded', function() {
     toggles[i].addEventListener('click', function(e) {
       var key = getToggleKey(this.textContent.trim());
       if (!key) return;
-      S235.boost[key] = !S235.boost[key];
-      this.className = S235.boost[key] ? 'tgl on' : 'tgl';
-      addEvent('boost', (S235.boost[key] ? '开启' : '关闭') + '·' + this.textContent.trim(), 'boost');
-      SM3Chain.log('boost_toggle', (S235.boost[key] ? '开启' : '关闭') + '·增强开关-' + this.textContent.trim());
+      SRaftState.boost[key] = !SRaftState.boost[key];
+      this.className = SRaftState.boost[key] ? 'tgl on' : 'tgl';
+      addEvent('boost', (SRaftState.boost[key] ? '开启' : '关闭') + '·' + this.textContent.trim(), 'boost');
+      SM3Chain.log('boost_toggle', (SRaftState.boost[key] ? '开启' : '关闭') + '·增强开关-' + this.textContent.trim());
       updateAll();
     });
   }
@@ -2302,15 +2302,15 @@ function calibratePrecision() {
   addEvent('precision', '精度校准触发·全局FineScore重新评估', 'precision');
   // Trigger verification animation
   DataSimulator.animateVerification(true, Math.random() > 0.08);
-  for (var i = 0; i < S235.dies.length; i++) {
-    var d = S235.dies[i];
+  for (var i = 0; i < SRaftState.dies.length; i++) {
+    var d = SRaftState.dies[i];
     if (d.status === 'running' || d.status === 'recovering') {
       d.precision = Math.min(98, d.precision + 2 + Math.random() * 3);
     }
   }
   computeAggregates();
   // SM3 chain log
-  SM3Chain.log('precision_calibrate', '精度校准执行·全局FineScore=' + S235.metrics.precisionScore.toFixed(1) + '%');
+  SM3Chain.log('precision_calibrate', '精度校准执行·全局FineScore=' + SRaftState.metrics.precisionScore.toFixed(1) + '%');
   updateAll();
 }
 
@@ -2319,8 +2319,8 @@ function rollbackAccuracy() {
   // Trigger verification animation
   DataSimulator.animateVerification(Math.random() > 0.1, Math.random() > 0.05);
   var rbDieCount = 0;
-  for (var i = 0; i < S235.dies.length; i++) {
-    var d = S235.dies[i];
+  for (var i = 0; i < SRaftState.dies.length; i++) {
+    var d = SRaftState.dies[i];
     if (d.currentStep > 0 && (d.status === 'running' || d.status === 'recovering')) {
       d.currentStep--;
       d.precision = calcPrecision(d, d.currentStep);
@@ -2331,7 +2331,7 @@ function rollbackAccuracy() {
   }
   computeAggregates();
   // SM3 chain log
-  SM3Chain.log('rollback', '准确率回滚执行·' + rbDieCount + '个Die回退至上一步骤·总回退=' + S235.dies.reduce(function(s,d){return s+d.totalRollbacks},0));
+  SM3Chain.log('rollback', '准确率回滚执行·' + rbDieCount + '个Die回退至上一步骤·总回退=' + SRaftState.dies.reduce(function(s,d){return s+d.totalRollbacks},0));
   updateAll();
 }
 
@@ -2345,10 +2345,10 @@ function verifyFullChain() {
 }
 
 function resetSeed() {
-  S235.engine.seed = '0x235DAI·RESET-' + Date.now().toString(16).toUpperCase().slice(-6);
-  addEvent('sys', '引擎种子重置·' + S235.engine.seed + '·确定性框架不变', 'info');
+  SRaftState.engine.seed = '0xRaftKV·RESET-' + Date.now().toString(16).toUpperCase().slice(-6);
+  addEvent('sys', '引擎种子重置·' + SRaftState.engine.seed + '·确定性框架不变', 'info');
   // SM3 chain log
-  SM3Chain.log('seed_reset', '确定性引擎种子重置·新种子=' + S235.engine.seed);
+  SM3Chain.log('seed_reset', '确定性引擎种子重置·新种子=' + SRaftState.engine.seed);
   updateAll();
 }
 
@@ -2362,7 +2362,7 @@ function sealEvidence() {
       console.warn('[API] 固化存证·后端未接入·使用本地SM3链');
       if (typeof SM3Chain !== 'undefined') {
         SM3Chain.log('evidence_seal', '哈希链固化存证(本地)·后端未接入').then(function() {
-          if (typeof S235 !== 'undefined') { S235.hashDepth = SM3Chain.depth; S235.hashSequence = SM3Chain.sequence; }
+          if (typeof SRaftState !== 'undefined') { SRaftState.hashDepth = SM3Chain.depth; SRaftState.hashSequence = SM3Chain.sequence; }
         });
       }
       insertAuditEvent('scs', 'boost', '固化存证·本地SM3链·链深已更新');
@@ -2376,7 +2376,7 @@ function sealEvidence() {
     console.warn('[API] 固化存证·后端未接入:', err.message);
     if (typeof SM3Chain !== 'undefined') {
       SM3Chain.log('evidence_seal', '哈希链固化存证(本地)·后端异常').then(function() {
-        if (typeof S235 !== 'undefined') { S235.hashDepth = SM3Chain.depth; S235.hashSequence = SM3Chain.sequence; }
+        if (typeof SRaftState !== 'undefined') { SRaftState.hashDepth = SM3Chain.depth; SRaftState.hashSequence = SM3Chain.sequence; }
       });
     }
     insertAuditEvent('scs', 'boost', '固化存证·本地SM3链·离线模式');
@@ -2528,20 +2528,20 @@ function insertAuditEvent(level, cat, msg, ts) {
 function updateChainFromBackend(data) {
   if (!data) return;
   var depth = data.log_count || data.commit_index || data.applied || 0;
-  if (typeof S235 !== 'undefined') {
-    S235.hashDepth = Math.max(S235.hashDepth || 15592, depth);
-    S235.hashSequence++;
+  if (typeof SRaftState !== 'undefined') {
+    SRaftState.hashDepth = Math.max(SRaftState.hashDepth || 15592, depth);
+    SRaftState.hashSequence++;
   }
   // Update DOM
   var elDepth = document.getElementById('sDepth');
   var elSeq   = document.getElementById('sSeq');
-  if (elDepth) elDepth.textContent = (typeof S235 !== 'undefined' ? S235.hashDepth : depth).toLocaleString();
-  if (elSeq)   elSeq.textContent = '#' + (typeof S235 !== 'undefined' ? S235.hashSequence : depth);
+  if (elDepth) elDepth.textContent = (typeof SRaftState !== 'undefined' ? SRaftState.hashDepth : depth).toLocaleString();
+  if (elSeq)   elSeq.textContent = '#' + (typeof SRaftState !== 'undefined' ? SRaftState.hashSequence : depth);
   // Also update DataSimulator if available
   if (typeof DataSimulator !== 'undefined' && DataSimulator.getState) {
     var st = DataSimulator.getState();
-    st.hashDepth = typeof S235 !== 'undefined' ? S235.hashDepth : depth;
-    st.hashSequence = typeof S235 !== 'undefined' ? S235.hashSequence : depth;
+    st.hashDepth = typeof SRaftState !== 'undefined' ? SRaftState.hashDepth : depth;
+    st.hashSequence = typeof SRaftState !== 'undefined' ? SRaftState.hashSequence : depth;
   }
 }
 
@@ -2605,7 +2605,7 @@ var auditLogArray = [
   {time:'07:47:19.600',level:'info',cat:'boost',msg:'智能增强引擎周期评估·各项指标健康'},
   {time:'07:47:18.387',level:'urg',cat:'drift',msg:'紧急漂移告警·Finalizer输出方向180°反转'},
   {time:'07:47:17.172',level:'scs',cat:'precision',msg:'校准完成·全局FineScore稳定在93%±1'},
-  {time:'07:47:15.958',level:'info',cat:'accuracy',msg:'确定性参数确认·Temp=0/MoE=Fixed/Seed=0x235DAI'},
+  {time:'07:47:15.958',level:'info',cat:'accuracy',msg:'确定性参数确认·Temp=0/MoE=Fixed/Seed=0xRaftKV'},
   {time:'07:47:14.745',level:'scs',cat:'consensus',msg:'共识达成·4/5 Agent同意最终输出方案'},
   {time:'07:47:13.530',level:'wrn',cat:'hallucination',msg:'低置信度输出频次增加·过滤器升级建议'},
   {time:'07:47:12.315',level:'info',cat:'boost',msg:'Recovery引擎自检通过·回滚成功率=92.4%'},
@@ -2751,13 +2751,13 @@ function exportEventPDF() {
 // =====================================================
 function handleResetSeed() {
   console.log('正在执行：重置种子');
-  var seeds = ['0x235DAI','0xA1B2C3D4','0xFE80DCBA','0x7F3A9C1E','0xDA235ENG','0xC0DE2026','0x8BADF00D','0x1CEB00B5'];
+  var seeds = ['0xRaftKV','0xA1B2C3D4','0xFE80DCBA','0x7F3A9C1E','0xDARAFTENG','0xC0DE2026','0x8BADF00D','0x1CEB00B5'];
   var newSeed = seeds[Math.floor(Math.random() * seeds.length)];
   // Update the seed display in Panel 2
   var seedEls = document.querySelectorAll('.panel-l.p2 .s-val.pr');
   if (seedEls.length > 0) { seedEls[seedEls.length-1].textContent = newSeed + '·FIXED'; }
-  // Also update S235 engine
-  if (typeof S235 !== 'undefined' && S235.engine) { S235.engine.seed = newSeed; }
+  // Also update SRaftState engine
+  if (typeof SRaftState !== 'undefined' && SRaftState.engine) { SRaftState.engine.seed = newSeed; }
   // Trigger SM3 chain log
   if (typeof SM3Chain !== 'undefined') { SM3Chain.log('seed_reset', '引擎种子重置·新种子=' + newSeed); }
   Toast.show('已发起重置种子指令·Seed=' + newSeed, 'info');
@@ -2984,13 +2984,13 @@ function stopClusterHealthPolling() {
 // PART 15: Initialize 16 Dies & Start Simulation
 // =====================================================
 function initDies() {
-  S235.dies = [];
-  for (var i = 0; i < S235.dieCount; i++) {
-    S235.dies.push(new Die(i));
+  SRaftState.dies = [];
+  for (var i = 0; i < SRaftState.dieCount; i++) {
+    SRaftState.dies.push(new Die(i));
   }
   // Seed initial events
-  addEvent('sys', 'RaftKV确定性管控中枢启动·' + S235.dieCount + '个Die就绪', 'boost');
-  addEvent('sys', '确定性引擎: Temp=0·MoE=FIXED·FP64·Seed=0x235DAI', 'precision');
+  addEvent('sys', 'RaftKV确定性管控中枢启动·' + SRaftState.dieCount + '个Die就绪', 'boost');
+  addEvent('sys', '确定性引擎: Temp=0·MoE=FIXED·FP64·Seed=0xRaftKV', 'precision');
   addEvent('sys', '7步Agent链路: Orchstrator→Planner→Decomposer→Executor→Verifier→Recovery→Finalizer', 'accuracy');
   // Seed SM3 hash chain with genesis record
   SM3Chain.log('genesis', 'RaftKV管控中枢SM3哈希链初始化·确定性审计日志启动');
@@ -3116,20 +3116,20 @@ function initCharts() {
 // PART 17: Chart Update Functions (called per simTick)
 // =====================================================
 function updateCharts() {
-  var m = S235.metrics;
-  var h = S235.history;
+  var m = SRaftState.metrics;
+  var h = SRaftState.history;
   if (typeof echarts === 'undefined') return;
 
   // --- Gauge ---
   if ($charts.gauge) {
-    $charts.gauge.setOption({ series: [{ data: [{ value: parseFloat(m.determinismScore.toFixed(1)), name: S235.chaos.active ? 'CHAOS' : 'STEADY' }] }] });
+    $charts.gauge.setOption({ series: [{ data: [{ value: parseFloat(m.determinismScore.toFixed(1)), name: SRaftState.chaos.active ? 'CHAOS' : 'STEADY' }] }] });
   }
 
   // --- Decay curve (from worst active Die) ---
   if ($charts.decay) {
     var worst = null;
-    for (var i = 0; i < S235.dies.length; i++) {
-      var d = S235.dies[i];
+    for (var i = 0; i < SRaftState.dies.length; i++) {
+      var d = SRaftState.dies[i];
       if (d.status === 'running' || d.status === 'recovering') {
         if (!worst || d.precision < worst.precision) worst = d;
       }
@@ -3146,8 +3146,8 @@ function updateCharts() {
   // --- Die Distribution ---
   if ($charts.dist) {
     var cnts = { running: [0,0,0,0,0,0,0], recovering: [0,0,0,0,0,0,0], crashed: [0,0,0,0,0,0,0], complete: [0,0,0,0,0,0,0] };
-    for (var j = 0; j < S235.dies.length; j++) {
-      var die = S235.dies[j];
+    for (var j = 0; j < SRaftState.dies.length; j++) {
+      var die = SRaftState.dies[j];
       if (die.currentStep >= 0 && die.currentStep < 7) {
         var st = die.status;
         if (st === 'running') cnts.running[die.currentStep]++;
@@ -3165,14 +3165,14 @@ function updateCharts() {
 
   // --- Event Frequency ---
   if ($charts.events) {
-    h.eventCounts.push(S235.events.length > 1 ? Math.min(6, S235.events.filter(function(e){ return (Date.now() - e.time) < 30000; }).length) : 1);
+    h.eventCounts.push(SRaftState.events.length > 1 ? Math.min(6, SRaftState.events.filter(function(e){ return (Date.now() - e.time) < 30000; }).length) : 1);
     if (h.eventCounts.length > 20) h.eventCounts.shift();
     $charts.events.setOption({ series: [{ data: h.eventCounts.slice() }] });
   }
 
   // --- Performance Trend ---
   if ($charts.perf) {
-    h.p99Lat.push(m.avgLatency + (S235.chaos.active ? 40 : 0));
+    h.p99Lat.push(m.avgLatency + (SRaftState.chaos.active ? 40 : 0));
     h.cpu.push(m.cpuUsage);
     h.throughput.push(m.totalThroughput);
     if (h.p99Lat.length > 30) { h.p99Lat.shift(); h.cpu.shift(); h.throughput.shift(); }
@@ -3208,7 +3208,7 @@ var DataSimulator = (function() {
     grpcHealth:     100,    // gRPC连接健康度(%)
     // Panel 1 Status
     runMode:        '确定性优先',
-    resources:      '16 Agent·235引擎',
+    resources:      '16 Agent·RaftKV引擎',
     healthScore:    97,
     healthLabel:    '优秀',
     uptimeHours:    1286,
@@ -3231,7 +3231,7 @@ var DataSimulator = (function() {
     cpuUsage:       34,
     gpuMem:         18.4,
     hashDepth:      15592,
-    hashSequence:   235,
+    hashSequence:   1,
     // Panel 6 Classes
     cpuClass:       'ok',
     gpuClass:       'ok',
@@ -3346,10 +3346,10 @@ var DataSimulator = (function() {
     // Chaos state
     if (state.chaosActive) {
       state.runMode = '混沌恢复中';
-      state.resources = '8/16 Agent·235引擎(受损)';
+      state.resources = '8/16 Agent·RaftKV引擎(受损)';
     } else {
       state.runMode = '确定性优先';
-      state.resources = '16 Agent·235引擎';
+      state.resources = '16 Agent·RaftKV引擎';
     }
 
     // Decay display values
@@ -3402,7 +3402,7 @@ var DataSimulator = (function() {
     setText('sThru',    state.throughput.toLocaleString() + ' t/s');
     setText('sCpu',     state.cpuUsage.toFixed(0) + '%');
     setText('sGpuMem',  state.gpuMem.toFixed(1) + ' GB');
-    setText('sHash',    '0xda235e...' + Math.floor(Math.random() * 0xffff).toString(16).padStart(4,'0'));
+    setText('sHash',    '0xdarafte...' + Math.floor(Math.random() * 0xffff).toString(16).padStart(4,'0'));
     setText('sDepth',   state.hashDepth.toLocaleString());
     setText('sSeq',     '#' + state.hashSequence);
 

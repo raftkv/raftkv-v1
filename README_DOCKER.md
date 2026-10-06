@@ -12,7 +12,7 @@
 ## 第一步：进入项目目录
 
 ```powershell
-cd "<HOME>\Desktop\RaftKV\raftkv_go_engine"
+cd <path-to-cloned-repo>
 ```
 
 确认文件齐全：

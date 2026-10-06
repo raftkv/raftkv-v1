@@ -8,7 +8,7 @@
 #   go run examples/kv_client/main.go http://localhost:9001
 #
 # Note: In degraded mode, writes are rejected. To enable writes,
-# generate a license key using cmd/license-tool and mount it into
+# obtain a commercial license key and mount it into
 # the containers, then set LICENSE_FAIL_MODE=closed.
 
 services:

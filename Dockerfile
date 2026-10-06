@@ -1,7 +1,7 @@
 # ---- Stage 1: Builder ----
 FROM golang:1.24-alpine AS builder
 
-ENV GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=https://proxy.golang.org,direct
 ENV GO111MODULE=on
 
 WORKDIR /build
@@ -16,7 +16,7 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # ---- Stage 2: Runtime ----
 FROM alpine:3.21
 
-RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/g' /etc/apk/repositories
+
 RUN apk add --no-cache ca-certificates tzdata curl
 ENV TZ=Asia/Shanghai
 # 双模式授权防线（2026-09-01 项目组决议二）
