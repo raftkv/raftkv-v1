@@ -6,6 +6,7 @@ CONTRIBUTING.md eol=lf
 *.yml eol=lf
 *.yaml eol=lf
 *.sh eol=lf
-*.toml eol=lf*.html eol=lf
+*.toml eol=lf
+*.html eol=lf
 .gitignore eol=lf
 *.env.example eol=lf
