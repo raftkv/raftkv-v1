@@ -2,6 +2,9 @@
 # 纳入: 全部源码+构建必需文件
 # 排除: 二进制/WAL/大文件/密钥/工具目录
 
+# --- 内部审计物证（不入公网仓库）---
+audit_evidence/
+
 # --- WAL文件 ---
 *.wal
 pkg/integration-test/integration_test.wal
