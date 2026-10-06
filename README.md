@@ -81,7 +81,7 @@ All measurements use a 5-node cluster with concurrency=128, write ratio=20%.
 
 ### Fault Tolerance
 
-- **kill leader**: election recovery ≤ 7.6s, zero data loss (see verification report)
+- **kill leader**: 选举通常<10s, 冷启动首次可能略长, zero data loss (see verification report)
 
 ---
 
@@ -163,6 +163,12 @@ export WAL_PATH="/tmp/raft-node-3.wal"
 go run . -id node-3 -port 9502 -http 9003 \
   -peers node-1=localhost:9500,node-2=localhost:9501
 ```
+
+> **⚠ Dual-Track Conflict Notice**: The quickstart (`examples/docker-compose-quickstart.yml`)
+> and production 5-node (`tests/deploy/docker-compose-5node.yml`) tracks share the same
+> container names (`raft-node-1` ~ `raft-node-5`) and ports (`9001`~`9005`, `9501`~`9505`).
+> They **cannot run simultaneously**. Run `docker compose down` before switching tracks.
+> To run both at once, modify the project name prefix (`-p`) and port mappings in one track.
 
 ### Production Deployment (5-Node, Fail-Closed)
 
