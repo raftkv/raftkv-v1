@@ -1,7 +1,7 @@
 #!/bin/bash
 # deploy_up.sh — 一键拉起RaftKV集群
 # 修正A: SM4_KEY双模式（留空=生成复用, 显式=用指定值）
-# D3-sec-rotate: 默认改为5节点(docker-compose-5node.yml)
+# 默认改为5节点(docker-compose-5node.yml)
 # --legacy: 使用2节点裁剪版(docker-compose.yml), 历史形态，仅作对照
 set -euo pipefail
 

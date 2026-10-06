@@ -1,10 +1,10 @@
 # =========================================================================
-# RaftKV — 5节点Raft集群部署compose（D3-batch0R基线）
+# RaftKV — 5节点Raft集群部署compose（5节点基线）
 #
 # 基于D2部署compose(docker-compose.yml)扩展至5节点，匹配原始设计(docker-compose.yml根目录)
 #
-# === 与根目录docker-compose.yml的差异清单（D3-audit-reply闭环1）===
-# 本文件不是根compose的等价复制，以下为适配性改写（详见docs/D3-AUDIT-REPLY.md闭环1）：
+# === 与根目录docker-compose.yml的差异清单（适配性改写）===
+# 本文件不是根compose的等价复制，以下为适配性改写（详见docs/OPERATIONS.md）：
 #   1. 镜像来源: image:${IMAGE_NAME}(ci-gate) vs build:. — ci-gate已验证含/health/live
 #   2. 端口策略: 全节点相同GRPC(9500)+无host暴露 vs 每节点不同端口+host映射 — D2部署模式
 #   3. SM4_KEY: 有 vs 无 — ci-gate为fail-closed需SM4_KEY做数据加密
