@@ -1,4 +1,4 @@
-﻿$engine = "<HOME>\Desktop\RaftKV\raftkv_go_engine"
+﻿$engine = "<HOME>\Desktop\RaftKV\raftkv"
 $out = "$engine\dist_load_out.txt"
 
 # Baseline

@@ -2,11 +2,11 @@
 # 每30分钟采集一次，共9个采集点(0h ~ 4h)
 $logFile = "<HOME>\Desktop\edge_4h_monitor.log"
 $nodes = @(
-    "raftkv_go_engine-node-1-1",
-    "raftkv_go_engine-node-2-1",
-    "raftkv_go_engine-node-3-1",
-    "raftkv_go_engine-node-4-1",
-    "raftkv_go_engine-node-5-1"
+    "raft-node-1",
+    "raft-node-2",
+    "raft-node-3",
+    "raft-node-4",
+    "raft-node-5"
 )
 $nodeNames = @("node-1","node-2","node-3","node-4","node-5")
 $totalPoints = 9

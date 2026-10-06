@@ -21,7 +21,7 @@ for i in $(seq 1 $TOTAL_POINTS); do
     
     # 采集每个节点的资源使用和Raft状态
     for node_id in 1 2 3 4 5; do
-        NODE="raftkv_go_engine-node-${node_id}-1"
+        NODE="raft-node-${node_id}"
         
         # CPU和内存 (从docker stats)
         STATS=$(docker stats --no-stream --format "{{.CPUPerc}}|{{.MemUsage}}|{{.MemPerc}}" $NODE 2>/dev/null)
@@ -36,7 +36,7 @@ for i in $(seq 1 $TOTAL_POINTS); do
     done
     
     # 检查OOM事件
-    OOM=$(docker events --since 30m --filter event=oom --filter container=raftkv_go_engine-node-1-1 --filter container=raftkv_go_engine-node-2-1 --filter container=raftkv_go_engine-node-3-1 --filter container=raftkv_go_engine-node-4-1 --filter container=raftkv_go_engine-node-5-1 --until 0s 2>/dev/null | head -1)
+    OOM=$(docker events --since 30m --filter event=oom --filter container=raft-node-1 --filter container=raft-node-2 --filter container=raft-node-3 --filter container=raft-node-4 --filter container=raft-node-5 --until 0s 2>/dev/null | head -1)
     if [ -n "$OOM" ]; then
         echo "  [WARNING] 检测到OOM事件: $OOM" >> $LOGFILE
     else
