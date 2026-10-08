@@ -350,15 +350,31 @@ Configuration: [`tests/contracts/regression.yaml`](tests/contracts/regression.ya
 ### Chaos Testing
 
 ```bash
-# Inject node kill
-go run ./cmd/chaos_injector -action kill -target node-2
+# Run all fault scenarios (default)
+go run ./cmd/chaos_injector \
+  -cluster-config config.toml \
+  -contract tests/contracts/fault_injection_1.yaml \
+  -evidence-dir tests/evidence/run
 
-# Inject network partition
-go run ./cmd/chaos_injector -action partition -targets node-1,node-2
+# Run a specific scenario type
+go run ./cmd/chaos_injector \
+  -cluster-config config.toml \
+  -contract tests/contracts/fault_injection_1.yaml \
+  -evidence-dir tests/evidence/run \
+  -scenario-type cascading
 
-# Composite scenario
-go run ./cmd/chaos_injector -scenario composite_scenario.json
+# Run with a timebox limit
+go run ./cmd/chaos_injector \
+  -cluster-config config.toml \
+  -contract tests/contracts/fault_injection_1.yaml \
+  -evidence-dir tests/evidence/run \
+  -scenario-type steady \
+  -timebox 30m
 ```
+
+Available flags: `-cluster-config`, `-contract`, `-evidence-dir`,
+`-full-rerun`, `-scenario-type` (steady|under_load|cascading|all),
+`-timebox`.
 
 ---
 
