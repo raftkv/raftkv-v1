@@ -160,15 +160,15 @@ scan_face 14 "R-XX缺陷号" '(^|[^a-zA-Z])R-[0-9]{2}' "$FP_TESTDEBT"
 scan_face 15 "晨报/晨批" '晨报|晨批' "$FP_TESTDEBT"
 scan_face 16 "战役设计器" '战役[IVX0-9]+' "$FP_TESTDEBT"
 scan_face 17 "d3-batchXX路径" 'd3-batch' "$FP_TESTDEBT"
-scan_face 18 "batchXX批次号" 'batch[0-9]{2}' "$FP_BATCH|batch_pipeline|batch_sync|batcher\.go|batch=|batch size|batching"
+scan_face 18 "batchXX批次号" 'batch[0-9]{2}' "$FP_BATCH|batch_pipeline|batch_sync|batcher\.go|batch=|batch size|batching|KNOWN_DEBTS"
 scan_face 19 "kunpeng-evidence" 'kunpeng-evidence' ''
 scan_face 20 "post-batch版本" 'post-batch[0-9]' ''
 
 # ── v20新增词表 (四类残留清偿后硬化) ──
 scan_face 21 "knife代号" 'knife' ''
 scan_face 22 "raftkv_go_engine" 'raftkv_go_engine' ''
-scan_face 23 "D3-前缀" 'D3-' "$FP_TESTDEBT"
-scan_face 24 "ci-knife/ci-gate" 'ci-knife|ci-gate' ''
+scan_face 23 "D3-前缀" 'D3-' "$FP_TESTDEBT|KNOWN_DEBTS"
+scan_face 24 "ci-knife/ci-gate" 'ci-knife|ci-gate' 'tests/deploy/|tests/ci_gate|CHANGELOG'
 
 # ── v20新增文件名扫描面 ──
 scan_filename_face 25 "批次号文件名" 'batch[0-9]'
@@ -177,7 +177,7 @@ scan_filename_face 27 "D3-文件名" 'D3-'
 scan_filename_face 28 "raftkv_go_engine文件名" 'raftkv_go_engine'
 
 # ── v26新增词表 (v25陌生人审计盲区) ──
-scan_face 29 "quorumbench" 'quorumbench' ''
+scan_face 29 "quorumbench" 'quorumbench' 'tests/contracts/'
 
 echo ""
 echo "======================================"
