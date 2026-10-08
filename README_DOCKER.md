@@ -6,6 +6,8 @@
 
 - Docker Desktop 已安装并运行
 - 终端 (PowerShell / CMD) 已打开
+- **SM4_KEY**：必填。16 字节 SM4 加密密钥（32 字符 hex 编码）。缺失或无效时进程立即退出（fail-closed）
+- **LICENSE_FAIL_MODE**：默认 `closed`（生产模式，需 license key）。评估模式设为 `open`（降级只读，写入被拒绝）
 
 ---
 
@@ -25,6 +27,22 @@ dir *.go Dockerfile docker-compose.yml
 ---
 
 ## 第二步：构建并启动集群
+
+### 2.1 设置必填环境变量
+
+```powershell
+# SM4 key: 16 bytes as 32-char hex (TEST KEY ONLY - do not use in production)
+export SM4_KEY="726166746b765f736d34746573743031"
+
+# 评估模式：允许无 license 启动（降级只读，写入被拒绝）
+export LICENSE_FAIL_MODE=open
+```
+
+> **⚠ 必填**：`SM4_KEY` 缺失时容器无限重启（fail-closed）。生产模式需额外
+> 提供 license key 文件并保持 `LICENSE_FAIL_MODE=closed`，详见
+> [README License](README.md#license)。
+
+### 2.2 构建并启动
 
 ```powershell
 docker-compose up -d --build
