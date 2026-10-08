@@ -29,7 +29,7 @@ string. If missing or invalid, the process exits immediately (fail-closed).
 
 For demo/evaluation without a license key, set `LICENSE_FAIL_MODE=open` to
 run in degraded read-only mode (Raft elections and reads work; writes are
-rejected). For production use, generate a license via `cmd/license-tool`
+rejected). For production use, obtain a license key from the project owner
 and keep `LICENSE_FAIL_MODE=closed` (the default).
 
 ```bash
@@ -76,8 +76,9 @@ curl http://localhost:9000/raft/status
 ```
 
 > **Note**: In degraded mode (`LICENSE_FAIL_MODE=open`), write operations
-> return HTTP 503. To enable writes, generate a license key using
-> `cmd/license-tool` and set `LICENSE_FAIL_MODE=closed`.
+> return HTTP 503. To enable writes, obtain a license key from the project
+> owner (see [README License section](../README.md#license)) and set
+> `LICENSE_FAIL_MODE=closed`.
 
 ### 3. Start
 

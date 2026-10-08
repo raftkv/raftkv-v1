@@ -540,3 +540,18 @@ that has recurred multiple times. The scan must exit 0 (all green).
 
 Licensed under the GNU Affero General Public License v3 (AGPLv3). See
 [`LICENSE`](LICENSE) for the full license text.
+### Obtaining License Keys for Production
+
+Production deployment (`LICENSE_FAIL_MODE=closed`) requires RSA-signed license
+key files (`node-1.key` ~ `node-N.key`) placed in the `LICENSE_DIR` directory.
+The license tool is an internal tool not published with this repository.
+
+To obtain license keys:
+
+1. Contact the project owner for commercial license issuance.
+2. Provide the node IDs and the `FP_ANCHOR` (host fingerprint anchor) for each
+   node in your cluster.
+3. Place the received `.key` files in your `LICENSE_DIR` directory.
+
+For evaluation or read-only mode, set `LICENSE_FAIL_MODE=open` instead — no
+license key is required (writes are rejected, reads and Raft elections work).
