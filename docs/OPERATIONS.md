@@ -49,7 +49,7 @@ python tests/contracts/regression_gate.py \
   --verdict tests/evidence/run/verdict.json
 ```
 
-9 线全绿方可推进本批门。
+10 线全绿方可推进本批门。
 
 ## 判定
 

@@ -17,8 +17,8 @@ This guide gets you from zero to a running RaftKV cluster in under 5 minutes.
 ### 1. Build
 
 ```bash
-git clone https://github.com/raftkv/raftkv.git
-cd raftkv
+git clone https://github.com/raftkv/raftkv-v1.git
+cd raftkv-v1
 go build -o raftkv .
 ```
 
