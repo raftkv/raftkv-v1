@@ -350,15 +350,31 @@ Configuration: [`tests/contracts/regression.yaml`](tests/contracts/regression.ya
 ### Chaos Testing
 
 ```bash
-# Inject node kill
-go run ./cmd/chaos_injector -action kill -target node-2
+# Run all fault scenarios (default)
+go run ./cmd/chaos_injector \
+  -cluster-config config.toml \
+  -contract tests/contracts/fault_injection_1.yaml \
+  -evidence-dir tests/evidence/run
 
-# Inject network partition
-go run ./cmd/chaos_injector -action partition -targets node-1,node-2
+# Run a specific scenario type
+go run ./cmd/chaos_injector \
+  -cluster-config config.toml \
+  -contract tests/contracts/fault_injection_1.yaml \
+  -evidence-dir tests/evidence/run \
+  -scenario-type cascading
 
-# Composite scenario
-go run ./cmd/chaos_injector -scenario composite_scenario.json
+# Run with a timebox limit
+go run ./cmd/chaos_injector \
+  -cluster-config config.toml \
+  -contract tests/contracts/fault_injection_1.yaml \
+  -evidence-dir tests/evidence/run \
+  -scenario-type steady \
+  -timebox 30m
 ```
+
+Available flags: `-cluster-config`, `-contract`, `-evidence-dir`,
+`-full-rerun`, `-scenario-type` (steady|under_load|cascading|all),
+`-timebox`.
 
 ---
 
@@ -540,3 +556,18 @@ that has recurred multiple times. The scan must exit 0 (all green).
 
 Licensed under the GNU Affero General Public License v3 (AGPLv3). See
 [`LICENSE`](LICENSE) for the full license text.
+### Obtaining License Keys for Production
+
+Production deployment (`LICENSE_FAIL_MODE=closed`) requires RSA-signed license
+key files (`node-1.key` ~ `node-N.key`) placed in the `LICENSE_DIR` directory.
+The license tool is an internal tool not published with this repository.
+
+To obtain license keys:
+
+1. Contact the project owner for commercial license issuance.
+2. Provide the node IDs and the `FP_ANCHOR` (host fingerprint anchor) for each
+   node in your cluster.
+3. Place the received `.key` files in your `LICENSE_DIR` directory.
+
+For evaluation or read-only mode, set `LICENSE_FAIL_MODE=open` instead — no
+license key is required (writes are rejected, reads and Raft elections work).

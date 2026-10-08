@@ -17,8 +17,8 @@ This guide gets you from zero to a running RaftKV cluster in under 5 minutes.
 ### 1. Build
 
 ```bash
-git clone https://github.com/raftkv/raftkv.git
-cd raftkv
+git clone https://github.com/raftkv/raftkv-v1.git
+cd raftkv-v1
 go build -o raftkv .
 ```
 
@@ -29,7 +29,7 @@ string. If missing or invalid, the process exits immediately (fail-closed).
 
 For demo/evaluation without a license key, set `LICENSE_FAIL_MODE=open` to
 run in degraded read-only mode (Raft elections and reads work; writes are
-rejected). For production use, generate a license via `cmd/license-tool`
+rejected). For production use, obtain a license key from the project owner
 and keep `LICENSE_FAIL_MODE=closed` (the default).
 
 ```bash
@@ -60,24 +60,25 @@ You should see:
 ```bash
 # Health check
 curl http://localhost:9000/health/live
-# {"status":"alive"}
+# OK
 
-# Put a value (requires valid license; rejected in degraded mode)
-curl -X PUT http://localhost:9000/raft/entry \
-  -H "Content-Type: application/json" \
+# Propose a value (requires valid license; rejected in degraded mode)
+curl -X POST http://localhost:9000/raft/propose \
   -d '{"key":"hello","value":"world"}'
+# {"success":true,"index":1}
 
-# Get the value
-curl http://localhost:9000/raft/get?key=hello
-# {"value":"world"}
+# Read by log index
+curl http://localhost:9000/raft/get?index=1
+# {"found":true,"index":1,"term":1,"command":"eyJrZXkiOiJoZWxsbyIsInZhbHVlIjoid29ybGQifQ=="}
 
 # Raft status
 curl http://localhost:9000/raft/status
 ```
 
 > **Note**: In degraded mode (`LICENSE_FAIL_MODE=open`), write operations
-> return HTTP 503. To enable writes, generate a license key using
-> `cmd/license-tool` and set `LICENSE_FAIL_MODE=closed`.
+> return HTTP 503. To enable writes, obtain a license key from the project
+> owner (see [README License section](../README.md#license)) and set
+> `LICENSE_FAIL_MODE=closed`.
 
 ### 3. Start
 
@@ -99,16 +100,16 @@ You should see:
 ```bash
 # Health check
 curl http://localhost:9000/health/live
-# {"status":"alive"}
+# OK
 
 # Put a value
-curl -X PUT http://localhost:9000/raft/entry \
-  -H "Content-Type: application/json" \
+curl -X POST http://localhost:9000/raft/propose \
   -d '{"key":"hello","value":"world"}'
+# {"success":true,"index":1}
 
 # Get the value
-curl http://localhost:9000/raft/get?key=hello
-# {"value":"world"}
+curl http://localhost:9000/raft/get?index=1
+# {"found":true,"index":1,"term":1,"command":"eyJrZXkiOiJoZWxsbyIsInZhbHVlIjoid29ybGQifQ=="}
 
 # Raft status
 curl http://localhost:9000/raft/status
@@ -155,13 +156,12 @@ curl http://localhost:9003/raft/status
 # View cluster members
 curl http://localhost:9001/cluster/members
 
-# Write to the leader (writes to followers will redirect)
-curl -X PUT http://localhost:9001/raft/entry \
-  -H "Content-Type: application/json" \
+# Write to the leader
+curl -X POST http://localhost:9001/raft/propose \
   -d '{"key":"counter","value":"1"}'
 
 # Read from any node
-curl http://localhost:9003/raft/get?key=counter
+curl http://localhost:9003/raft/get?index=1
 ```
 
 ---
@@ -204,15 +204,14 @@ docker compose -p deploy5 down -v
 ### Write a Key-Value Pair
 
 ```bash
-curl -X PUT http://localhost:9001/raft/entry \
-  -H "Content-Type: application/json" \
+curl -X POST http://localhost:9001/raft/propose \
   -d '{"key":"mykey","value":"myvalue"}'
 ```
 
-### Read a Key
+### Read by Index
 
 ```bash
-curl "http://localhost:9001/raft/get?key=mykey"
+curl "http://localhost:9001/raft/get?index=1"
 ```
 
 ### Add a Node to the Cluster

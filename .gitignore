@@ -69,6 +69,7 @@ main,go,
 tests/evidence/
 
 # --- TLS证书（含私钥，不入git）---
+certs/
 tests/deploy/certs/
 
 # --- 部署配置（修正B: 不入git）---

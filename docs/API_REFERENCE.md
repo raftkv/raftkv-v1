@@ -11,82 +11,87 @@ All HTTP endpoints accept and return JSON unless otherwise noted.
 
 ### KV Operations
 
-#### PUT /raft/entry
+#### POST /raft/propose
 
-Propose a key-value entry. Must be sent to the leader node; follower nodes
-will return a redirect to the leader.
+Propose a command (raw bytes body). Must be sent to the leader node; follower
+nodes will return a redirect to the leader. Optional `?idem_token=<token>`
+query parameter for exactly-once semantics.
 
-**Request:**
-
-```json
-{
-  "key": "mykey",
-  "value": "myvalue"
-}
-```
+**Request:** Raw bytes (sent as the request body).
 
 **Response (200):**
 
 ```json
 {
-  "ok": true,
+  "success": true,
   "index": 42
 }
 ```
+
+**Response (503):** Degraded read-only mode (license fail-open) or in-flight cap exceeded.
 
 **Response (307):** Redirect to leader node (if sent to a follower).
 
 ---
 
-#### GET /raft/get?key=\<key\>
+#### GET /raft/get?index=\<N\>
 
-Read a value by key. Can be served by any node (linearizable read).
+Read a log entry by index. Can be served by any node (linearizable read).
 
 **Query Parameters:**
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `key` | string | yes | The key to read |
+| `index` | int64 | yes | The log index to read |
 
 **Response (200):**
 
 ```json
 {
-  "value": "myvalue",
-  "found": true
+  "found": true,
+  "index": 42,
+  "term": 5,
+  "command": "base64-encoded-bytes"
 }
 ```
 
-**Response (404):** Key not found.
+The `command` field is Base64-encoded (Go `[]byte` JSON marshalling). Decode
+to recover the original propose body.
+
+**Response (200, not found):**
+
+```json
+{
+  "found": false
+}
+```
+
+**Response (400):** Missing or invalid `index` parameter.
 
 ---
 
-#### POST /raft/propose
+#### GET /raft/entry?index=\<N\>
 
-Propose an entry with an idempotency token for exactly-once semantics.
+Read a committed entry for F3 liveness verification. Supports `&count=<C>`
+for batch reads.
 
-**Request:**
+**Query Parameters:**
 
-```json
-{
-  "key": "mykey",
-  "value": "myvalue",
-  "idem_token": "unique-request-id"
-}
-```
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `index` | int64 | no | The log index (defaults to commit_index) |
+| `count` | int64 | no | Batch count (returns a list of entries) |
 
-**Response (200):**
+**Response (200, single):**
 
 ```json
 {
-  "ok": true,
-  "index": 43,
-  "deduplicated": false
+  "index": 42,
+  "term": 5,
+  "value": "entry-value",
+  "commit_index": 42
 }
 ```
-
-If the same `idem_token` is sent again, `deduplicated` will be `true` and the
-original result is returned without re-applying the entry.
 
 ---
 
@@ -100,13 +105,15 @@ Returns the current Raft state of the node.
 
 ```json
 {
-  "node_id": "node-1",
+  "id": "node-1",
   "state": "Leader",
   "term": 5,
-  "leader": "node-1",
+  "leader_id": "node-1",
   "commit_index": 42,
   "last_applied": 42,
-  "log_length": 42
+  "log_count": 42,
+  "peer_count": 4,
+  "voted_for": "node-1"
 }
 ```
 
@@ -206,12 +213,11 @@ List all current cluster members.
 
 ```json
 {
-  "members": [
-    {"id": "node-1", "addr": "node-1:9500", "state": "Leader"},
-    {"id": "node-2", "addr": "node-2:9501", "state": "Follower"},
-    {"id": "node-3", "addr": "node-3:9502", "state": "Follower"}
-  ],
-  "leader": "node-1"
+  "current_members": ["node-1", "node-2", "node-3"],
+  "all_nodes": ["node-1", "node-2", "node-3"],
+  "quorum_size": 2,
+  "joint_consensus": false,
+  "peer_count": 3
 }
 ```
 
@@ -221,21 +227,21 @@ List all current cluster members.
 
 #### GET /health/live
 
-Liveness probe. Returns 200 if the process is alive.
+Liveness probe. Returns 200 with plain text `OK` if the process is alive.
 
-```json
-{"status": "alive"}
+```
+OK
 ```
 
 ---
 
 #### GET /health/ready
 
-Readiness probe. Returns 200 if the node is ready to serve requests (Raft
-initialized, WAL loaded).
+Readiness probe. Returns 200 with plain text `READY` if the node is ready to
+serve requests (Raft initialized, WAL loaded).
 
-```json
-{"status": "ready"}
+```
+READY
 ```
 
 ---

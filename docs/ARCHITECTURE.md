@@ -12,8 +12,8 @@
 | 故障注入 | cmd/chaos_injector/ | chaos_injector 工具 (steady/cascading/disk_full/network_partition) |
 | 判定脚本 | tests/contracts/judge_fault3.py | verdict 判定（引用 regression.yaml 线 ID + stat 定义） |
 | NP 判定脚本 | tests/contracts/judge_np.py | 网络分区 NP-1~5 验收判定 |
-| 回归门 | tests/contracts/regression_gate.py | 跨批回归检查 (9 线) |
-| 回归契约 | tests/contracts/regression.yaml | 9 线定义 + stat 字段 (median/max/min/count) |
+| 回归门 | tests/contracts/regression_gate.py | 跨批回归检查 (10 线) |
+| 回归契约 | tests/contracts/regression.yaml | 10 线定义 + stat 字段 (median/max/min/count) |
 
 ## Raft 配置
 
@@ -31,7 +31,7 @@
 | /raft/pre_vote | pre-vote 状态 |
 | /latency/decomp | 延迟分解 |
 | /raft/election_metrics | 选举/心跳计数 |
-## 回归门 (9 线)
+## 回归门 (10 线)
 
 | 线 ID | 名称 | stat | 阈值 |
 |-------|------|------|------|
@@ -44,6 +44,7 @@
 | REG-7 | disk_full_survival | min | ==100% |
 | REG-8 | prevote_effective | count | >0 |
 | REG-9 | partition_safety | max | ≤1 |
+| REG-10 | partition_recovery_timeliness | max | ≤30s |
 
 ## 网络分区场景
 

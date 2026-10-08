@@ -16,7 +16,7 @@ Raft 共识引擎实现，含 pre-vote、pipeline 批处理、group commit、WAL
 
 - 审计判例: docs/governance/AUDIT.md (12 判例)
 - 失败模式: docs/governance/MISBEHAVIOR.md (8 条)
-- 回归门: tests/contracts/regression.yaml (8 线)
+- 回归门: tests/contracts/regression.yaml (10 线)
 - 路线图: docs/ROADMAP.md
 
 ## 部署
