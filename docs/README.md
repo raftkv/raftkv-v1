@@ -2,6 +2,7 @@
 
 > v1.0.0 Performance Sandbox
 > 日期: 2026-09-13
+> 口径修订: 2026-10-10（TPS/P99 对齐主 README；审计判例数对齐 CONTRIBUTING）
 
 ## 概览
 
@@ -9,12 +10,16 @@ Raft 共识引擎实现，含 pre-vote、pipeline 批处理、group commit、WAL
 
 ## 性能
 
-- TPS: 796.7 → 9020 (11.3x)
-- P99: 50ms (c=128) / 100ms (c=512)
+以下数值与主 [`README.md`](../README.md#tps-benchmark) 的 TPS Benchmark 表同口径
+（5 节点集群，concurrency=128，write ratio=20%）。此前的
+"TPS: 796.7 → 9020 (11.3x)" 与 "P99: 50ms/100ms" 属早期沙盒口径，已作废。
+
+- TPS: 841 (pre-Raft baseline) → 10,579 (post-Raft, 30min smoke) → 14,770 (post-Raft+snapshot, 1h soak)
+- P99: 3,100ms (pre-Raft) → 67.71ms (post-Raft) → 40.46ms (post-Raft+snapshot)
 
 ## 治理
 
-- 审计判例: docs/governance/AUDIT.md (12 判例)
+- 审计判例: docs/governance/AUDIT.md (26 判例)
 - 失败模式: docs/governance/MISBEHAVIOR.md (8 条)
 - 回归门: tests/contracts/regression.yaml (10 线)
 - 路线图: docs/ROADMAP.md

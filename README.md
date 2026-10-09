@@ -342,8 +342,16 @@ automated runs via the `-skip` flag.
 The regression gate enforces 10 lines (REG-1 through REG-10):
 
 ```bash
-python3 tests/contracts/regression_gate.py
+mkdir -p tests/evidence/run
+python3 tests/contracts/regression_gate.py \
+  --regression tests/contracts/regression.yaml \
+  --verdict tests/evidence/run/verdict.json
 ```
+
+Both `--regression` and `--verdict` are **required** arguments. Invoking the
+script with no arguments exits with an `argparse` error and never runs the gate.
+`--verdict` points at the verdict JSON produced by the current batch's judge
+scripts (see [`docs/OPERATIONS.md`](docs/OPERATIONS.md)).
 
 Configuration: [`tests/contracts/regression.yaml`](tests/contracts/regression.yaml)
 
@@ -532,6 +540,24 @@ Test execution: `go test ./... -skip TestRealGRPCConnectivity`
   the container-internal endpoint at `127.0.0.1:9600/debug/pprof`.
 - **TestRealGRPCConnectivity**: Requires a running gRPC server; excluded from
   automated test runs via the `-skip` flag.
+- **Makefile (known issue)**: the repository `Makefile` is **currently broken** —
+  a large number of characters were replaced by non-ASCII look-alikes (e.g. the
+  U+2212 minus sign) and shell variable references (`$`) were lost, so its
+  targets do not expand correctly. **Do not rely on `make` targets.** Use the
+  explicit commands documented in this README instead:
+
+  ```bash
+  go build ./...                                          # build
+  go test . -skip TestRealGRPCConnectivity -count=1        # unit tests
+  python3 tests/contracts/regression_gate.py \
+    --regression tests/contracts/regression.yaml \
+    --verdict tests/evidence/run/verdict.json              # regression gate
+  ```
+
+  (Repair tracked separately; see the project issue tracker.)
+- **pprof**: profiling endpoint is served by the gateway binary itself on
+  `127.0.0.1:9600/debug/pprof` (imported in `main.go`); it is bound to loopback
+  only and is not exposed outside the container/host.
 - **API stability**: v1.0.0 is the first stable release. The API is considered
   stable; breaking changes will follow semantic versioning.
 

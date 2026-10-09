@@ -28,19 +28,31 @@ dir *.go Dockerfile docker-compose.yml
 
 ## 第二步：构建并启动集群
 
-### 2.1 设置必填环境变量
+### 2.1 环境变量说明（2026-10-10 更正）
+
+> **⚠ 更正**：根目录 `docker-compose.yml` 已为每个节点**内置**所需环境变量
+> （`NODE_ID` / `GRPC_PORT` / `HTTP_PORT` / `LICENSE_FAIL_MODE: "closed"` /
+> `WAL_PATH: "/tmp/raft.wal"` / `PEERS`），**其中并没有 `SM4_KEY`**。
+> Docker Compose **不会**把宿主机环境变量自动透传进容器，因此在**本（根
+> compose）轨道**下执行 `export SM4_KEY=...` **对容器不生效**——
+> `SM4_KEY` 属于『当前该 compose 轨道不适用』项。
+> 需要自定义密钥时，请直接编辑 `docker-compose.yml` 对应服务的 `environment:`
+> 段加入 `SM4_KEY: "<32位hex>"`，再重新 `up -d`。
+>
+> **同时须知（实况）**：该 compose 把 `LICENSE_FAIL_MODE` 硬编码为 `"closed"`
+> 且**未挂载任何 license 目录** ⇒ 无有效 license 时进程按 fail-closed 拒绝启动，
+> 而服务 `restart: always` 会使其**反复重启**。若只想做评估/只读演示，请改用
+> [`examples/docker-compose-quickstart.yml`](examples/docker-compose-quickstart.yml)
+> （`LICENSE_FAIL_MODE=open`，无需 license），或按
+> [README 生产部署](README.md#5-node-docker-compose-production)
+> 用 `tests/deploy/deploy.env` 提供 license。
+
+本轨道**无需在宿主机设置任何环境变量**：
 
 ```powershell
-# SM4 key: 16 bytes as 32-char hex (TEST KEY ONLY - do not use in production)
-export SM4_KEY="726166746b765f736d34746573743031"
-
-# 评估模式：允许无 license 启动（降级只读，写入被拒绝）
-export LICENSE_FAIL_MODE=open
+# 无需 export：所有变量已在 docker-compose.yml 的 environment: 内定义
+# 如需切换模式，请编辑该文件（而不是在此 export）
 ```
-
-> **⚠ 必填**：`SM4_KEY` 缺失时容器无限重启（fail-closed）。生产模式需额外
-> 提供 license key 文件并保持 `LICENSE_FAIL_MODE=closed`，详见
-> [README License](README.md#license)。
 
 ### 2.2 构建并启动
 

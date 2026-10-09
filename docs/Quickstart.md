@@ -22,19 +22,22 @@ cd raftkv-v1
 go build -o raftkv .
 ```
 
-### 2. Set the SM4 Key and License Mode
+### 2. Set Required Environment Variables (SM4_KEY, WAL_PATH, License Mode)
 
-RaftKV requires a 16-byte SM4 encryption key as a 32-character hex-encoded
-string. If missing or invalid, the process exits immediately (fail-closed).
+RaftKV requires three environment variables before it will start:
 
-For demo/evaluation without a license key, set `LICENSE_FAIL_MODE=open` to
-run in degraded read-only mode (Raft elections and reads work; writes are
-rejected). For production use, obtain a license key from the project owner
-and keep `LICENSE_FAIL_MODE=closed` (the default).
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SM4_KEY` | **yes** | 16-byte SM4 encryption key as a 32-character hex-encoded string. If missing or invalid, the process exits immediately (fail-closed). |
+| `WAL_PATH` | **yes** | Write-ahead log file path. Must be set explicitly when WAL is enabled (the default). If it is missing the process **exits with a fatal error instead of silently falling back to a default path** (a shared WAL path across nodes would corrupt data). Use a unique path per node. |
+| `LICENSE_FAIL_MODE` | no (`closed`) | Set to `open` for demo/evaluation without a license key: runs in degraded read-only mode (Raft elections and reads work; writes are rejected). For production use, obtain a license key from the project owner and keep `closed` (the default). |
 
 ```bash
 # SM4 key: 16 bytes as 32-char hex (TEST KEY ONLY - do not use in production)
 export SM4_KEY="726166746b765f736d34746573743031"
+
+# WAL path: REQUIRED and unique per node (fail-closed if unset)
+export WAL_PATH="/tmp/raft-node-1.wal"
 
 # Demo mode: allows startup without a license (read-only)
 export LICENSE_FAIL_MODE=open
@@ -119,7 +122,7 @@ curl http://localhost:9000/raft/status
 
 ## Option B: 3-Node Cluster (Local Binary)
 
-### 1. Build
+### 1. Build and Set Required Environment Variables
 
 ```bash
 go build -o raftkv .
@@ -127,20 +130,28 @@ export SM4_KEY="726166746b765f736d34746573743031"
 export LICENSE_FAIL_MODE=open
 ```
 
+> **`WAL_PATH` is also required and must be unique per node.** Each node below
+> sets its own value right before starting (see step 2). Omitting it makes the
+> process exit with a fatal error (fail-closed); it does not fall back to a
+> default path.
+
 ### 2. Start 3 Nodes
 
 Open 3 terminals:
 
 ```bash
 # Terminal 1
+export WAL_PATH="/tmp/raft-node-1.wal"
 ./raftkv -id node-1 -port 9500 -http 9001 \
   -peers node-2=localhost:9501,node-3=localhost:9502
 
 # Terminal 2
+export WAL_PATH="/tmp/raft-node-2.wal"
 ./raftkv -id node-2 -port 9501 -http 9002 \
   -peers node-1=localhost:9500,node-3=localhost:9502
 
 # Terminal 3
+export WAL_PATH="/tmp/raft-node-3.wal"
 ./raftkv -id node-3 -port 9502 -http 9003 \
   -peers node-1=localhost:9500,node-2=localhost:9501
 ```
@@ -194,7 +205,9 @@ curl http://localhost:9001/cluster/members | python3 -m json.tool
 ### 3. Stop
 
 ```bash
-docker compose -p deploy5 down -v
+# The project name defaults to the directory name of the first -f file
+# ("examples"), so `-p examples` must match the `up` command in step 1.
+docker compose -f examples/docker-compose-quickstart.yml -p examples down -v
 ```
 
 ---
@@ -253,6 +266,16 @@ The SM4 key is required and must be a 32-character hex-encoded string
 
 ```bash
 export SM4_KEY="726166746b765f736d34746573743031"
+```
+
+### Process exits with "WAL_PATH 未设置，拒绝静默回落"
+
+`WAL_PATH` is required and has no default. The process deliberately refuses to
+fall back to a built-in path, because several nodes sharing one WAL file would
+corrupt data. Set it explicitly before starting, next to the `SM4_KEY` line:
+
+```bash
+export WAL_PATH="/tmp/raft-node-1.wal"
 ```
 
 ### Process exits with "授权校验失败（Fail-Closed 拒绝启动）"

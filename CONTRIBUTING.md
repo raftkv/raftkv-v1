@@ -15,7 +15,7 @@ the process for contributing to the project.
 
 ```bash
 git clone https://github.com/raftkv/raftkv-v1.git
-cd raftkv
+cd raftkv-v1
 go build ./...
 go test . -skip TestRealGRPCConnectivity -count=1
 ```
@@ -117,4 +117,4 @@ cases. Contributors should be aware of:
 ## License
 
 By contributing, you agree that your contributions will be licensed under the
-Apache License 2.0 (see [LICENSE](LICENSE)).
+GNU Affero General Public License v3 (AGPLv3) (see [LICENSE](LICENSE)).
