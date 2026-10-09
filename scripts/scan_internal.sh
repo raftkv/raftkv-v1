@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
-# scan_internal.sh v3 — 内部标识符全量扫描（硬化版）
+# scan_internal.sh v4 — 内部标识符全量扫描（硬化版）
+#
+# v4变更 (v-REPAIR2):
+#   1. 词表补入 v21/v23(版本号)、LEDGER(内部台账)、audit_workspace(内部审计工作区)
+#      —— 此前四个词不在词表, 属永久漏检面
+#   2. 新增文件名面33: v21/v23/LEDGER/audit_workspace 过文件名
+#   3. 新增第三层次扫描面34: commit message 层 (git log)。git grep 只扫 tracked
+#      文件内容, 扫不到 commit message —— v26 的 PR 正文与 commit message 曾公开
+#      暴露 quorumbench 等内部标识而扫描器全绿, 即为该盲区
+#   4. 新增「已知债(已裁决接受)」非致命明细段: 历史命中如实列出, 但历史不可改写,
+#      且已由裁决方接受 ⇒ 不计入 PASS/FAIL, 不阻断发布门
 #
 # v3变更:
 #   1. 扫描基线改git grep(仅扫tracked文件), 修复照README构建后产物假红(P1-8)
@@ -35,6 +45,9 @@
 #   raft_storage.go     — 单行历史注释引用batch6根因
 #   run_pipeline.sh     — CI流水线引用batch套件名
 #   .gitignore          — 含证据目录排除规则
+#   KNOWN_DEBTS.md      — 内部已知债登记文件, 按设计记录编号/平台代号/路径(已裁决接受)
+#   docker-compose-v23.yml / Dockerfile.v23 — v23 遗留构件(已裁决接受, 不修)
+#   echarts.min.js      — 第三方minified库, 'v21' 等为压缩代码巧合
 
 set -euo pipefail
 
@@ -118,9 +131,13 @@ scan_filename_face() {
   local num="$1"
   local name="$2"
   local pattern="$3"
+  local exempt_paths="${4:-}"
 
   local hits
   hits=$(git ls-files | grep -v "^vendor/" | grep -iE "$pattern" || true)
+  if [ -n "$exempt_paths" ]; then
+    hits=$(echo "$hits" | grep -vE "$exempt_paths" || true)
+  fi
 
   local count
   count=$(echo "$hits" | grep -c . || true)
@@ -135,8 +152,38 @@ scan_filename_face() {
   fi
 }
 
+# ════════════════════════════════════════════════════════════
+# 第三层次扫描面: commit message (git log 层)
+#   git grep 只能扫 tracked 文件的内容, 扫不到 commit message / PR 文本。
+#   本面扫描「尚未发布的本地提交」(git log --all 中排除已由 remote-tracking
+#   可达的部分), 即: 即将推送出去的提交。已发布历史不可改写, 其命中在下方
+#   「已知债(已裁决接受)」段如实列出, 不计入 PASS/FAIL。
+# ════════════════════════════════════════════════════════════
+COMMIT_MSG_PATTERN='quorumbench|ci-knife|ci-gate|knife|raftkv_go_engine|D3-|batch[0-9]{2}|LEDGER|audit_workspace|v2[13]|姜总裁|甲方|DAI[ _-]?JING[ _-]?235|daijin235|TCX[-−―—–]?[ⅠⅡⅢⅣⅤ12345]'
+
+scan_commit_msg_face() {
+  local num="$1"
+  local name="$2"
+  local pattern="$3"
+
+  local hits
+  hits=$(git log --branches --not --remotes --format='  %h  %s' 2>/dev/null | grep -inE "$pattern" || true)
+
+  local count
+  count=$(echo "$hits" | grep -c . || true)
+
+  if [ "$count" -eq 0 ]; then
+    echo "面${num} ${name}: 0 ✅"
+    PASS=$((PASS + 1))
+  else
+    echo "面${num} ${name}: ${count} ❌"
+    echo "$hits" | head -20
+    FAIL=$((FAIL + 1))
+  fi
+}
+
 echo "======================================"
-echo "内部标识符全量扫描 v3 (case-insensitive, git grep基线)"
+echo "内部标识符全量扫描 v4 (case-insensitive, git grep + git log 双层基线)"
 echo "======================================"
 echo ""
 
@@ -179,9 +226,39 @@ scan_filename_face 28 "raftkv_go_engine文件名" 'raftkv_go_engine'
 # ── v26新增词表 (v25陌生人审计盲区) ──
 scan_face 29 "quorumbench" 'quorumbench' 'tests/contracts/'
 
+# ── v-REPAIR2新增词表 (v-REPO/v-REPAIR 登记的漏检面) ──
+scan_face 30 "v21/v23版本号" 'v2[13]' 'KNOWN_DEBTS|docker-compose-v23|echarts\.min\.js'
+scan_face 31 "LEDGER内部台账" 'LEDGER' 'KNOWN_DEBTS|\.gitignore'
+scan_face 32 "audit_workspace审计工作区" 'audit_workspace' 'KNOWN_DEBTS'
+
+# ── v-REPAIR2新增文件名扫描面 ──
+scan_filename_face 33 "v21/v23/LEDGER/audit_workspace文件名" 'v2[13]|LEDGER|audit_workspace' 'Dockerfile\.v23|docker-compose-v23\.yml'
+
+# ── v-REPAIR2新增第三层次扫描面 (commit message 层) ──
+scan_commit_msg_face 34 "commit message内部标识" "$COMMIT_MSG_PATTERN"
+
 echo ""
 echo "======================================"
-echo "总计: ${PASS}面绿, ${FAIL}面红"
+echo "已知债(已裁决接受) — 如实列出, 非致命, 不计入 PASS/FAIL"
+echo "======================================"
+echo "  说明: 以下为**已发布历史**中的内部标识命中。历史不可改写, 且已由裁决方"
+echo "        接受保留; 本扫描器只对「今后」的新增负责。此段仅为如实披露。"
+echo ""
+echo "  [内容面] 历史命中(未豁免口径, 仅统计):"
+for kv in "v2[13]:v21/v23" "LEDGER:LEDGER" "audit_workspace:audit_workspace"; do
+  p="${kv%%:*}"; label="${kv##*:}"
+  n=$(git grep -inE "$p" -- ':!vendor/' ':!go.sum' ':!scripts/scan_internal.sh' 2>/dev/null | wc -l)
+  echo "    面${label}: ${n} 行"
+done
+echo ""
+echo "  [文件名面] 历史命中:"
+git ls-files | grep -v "^vendor/" | grep -iE 'v2[13]|LEDGER|audit_workspace' | sed 's/^/    /' || echo "    (无)"
+echo ""
+echo "  [commit message 面] 已发布历史命中 (git log --all):"
+git log --all --format='    %h  %s' 2>/dev/null | grep -inE "$COMMIT_MSG_PATTERN" | sed 's/^/    /' || echo "    (无)"
+echo ""
+echo "======================================"
+echo "总计: ${PASS}面绿, ${FAIL}面红  (不含已知债明细段)"
 echo "======================================"
 echo ""
 echo "假阳性排除(按文件路径范围, 非行级):"
