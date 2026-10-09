@@ -83,41 +83,6 @@ curl http://localhost:9000/raft/status
 > owner (see [README License section](../README.md#license)) and set
 > `LICENSE_FAIL_MODE=closed`.
 
-### 3. Start
-
-```bash
-./raftkv -id node-1 -port 9500 -http 9000
-```
-
-You should see:
-
-```
-══════════════════════════════════════════════════
-  RaftKV 键值存储 (Go gRPC 微服务版)
-  ...
-══════════════════════════════════════════════════
-```
-
-### 4. Test
-
-```bash
-# Health check
-curl http://localhost:9000/health/live
-# OK
-
-# Put a value
-curl -X POST http://localhost:9000/raft/propose \
-  -d '{"key":"hello","value":"world"}'
-# {"success":true,"index":1}
-
-# Get the value
-curl http://localhost:9000/raft/get?index=1
-# {"found":true,"index":1,"term":1,"command":"eyJrZXkiOiJoZWxsbyIsInZhbHVlIjoid29ybGQifQ=="}
-
-# Raft status
-curl http://localhost:9000/raft/status
-```
-
 ---
 
 ## Option B: 3-Node Cluster (Local Binary)

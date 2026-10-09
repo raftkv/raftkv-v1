@@ -19,8 +19,8 @@ Raft 共识引擎实现，含 pre-vote、pipeline 批处理、group commit、WAL
 
 ## 治理
 
-- 审计判例: docs/governance/AUDIT.md (26 判例)
-- 失败模式: docs/governance/MISBEHAVIOR.md (8 条)
+- 审计判例: 内部审计库 26 判例（**未随本仓库发布**；`docs/governance/` 在本仓库中不存在）
+- 失败模式: 内部失败模式库 8 条（**未随本仓库发布**）
 - 回归门: tests/contracts/regression.yaml (10 线)
 - 路线图: docs/ROADMAP.md
 

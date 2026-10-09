@@ -75,6 +75,13 @@ Follow the existing commit message style:
 
 Types: `feat`, `fix`, `docs`, `refactor`, `test`, `chore`
 
+**Red line — commit/PR metadata**: commit messages and pull-request titles and
+descriptions must not reference internal paths, internal platform codenames, or
+internal defect/batch numbers. Internal artefacts are not published with this
+repository, so such references are either meaningless to outside readers or an
+information leak. The internal-identifier scanner checks commit messages for
+unpushed commits; PRs whose metadata violates this rule will be rejected.
+
 ### 6. Pull Request
 
 - PRs should be focused and atomic (one logical change per PR)
@@ -105,8 +112,13 @@ RaftKV is a Raft-based key-value store with the following key components:
 
 ## Audit and Governance
 
-The project maintains an audit case library (`docs/governance/AUDIT.md`) with 26
-cases. Contributors should be aware of:
+> **Note (2026-10-10)**: the audit case library and the failure-mode catalogue are
+> **internal documents and are not published in this repository** — `docs/governance/`
+> does not exist here. The items below describe the project's internal governance
+> process; they are process names, not paths in this repository.
+
+The project maintains an internal audit case library with 26 cases. Contributors
+should be aware of:
 
 - **Red lines**: 13+4 enforced constraints that must not be violated
 - **Regression gate**: 10 lines that must stay green

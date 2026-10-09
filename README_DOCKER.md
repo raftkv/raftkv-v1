@@ -65,16 +65,18 @@ docker-compose up -d --build
 预期输出：
 ```
 [+] Building 120.0s (15/15) FINISHED
-[+] Running 5/5
+[+] Running 6/6
  ✔ Container raft-node-1     Started
- ✔ Container raftkv-frontend   Started
  ✔ Container raft-node-2     Started
  ✔ Container raft-node-3     Started
+ ✔ Container raft-node-4     Started
+ ✔ Container raft-node-5     Started
+ ✔ Container raftkv-frontend   Started
 ```
 
 ---
 
-## 第三步：验证三节点集群
+## 第三步：验证五节点集群
 
 ### 3.1 健康检查
 
@@ -82,9 +84,11 @@ docker-compose up -d --build
 curl http://localhost:9001/health/live
 curl http://localhost:9002/health/live
 curl http://localhost:9003/health/live
+curl http://localhost:9004/health/live
+curl http://localhost:9005/health/live
 ```
 
-预期：三个节点均返回 `OK`
+预期：五个节点均返回 `OK`
 
 ### 3.2 Raft 集群状态
 
@@ -95,12 +99,12 @@ curl http://localhost:9001/raft/stats
 预期输出：
 
 ```
-id=node-1 state=Leader term=1 leader=node-1 commit=X applied=X logs=X peers=2 voted=node-1
+id=node-1 state=Leader term=1 leader=node-1 commit=X applied=X logs=X peers=4 voted=node-1
 ```
 
 关键字段：
 - `state=Leader` → node-1 已当选 Leader
-- `peers=2` → 两个 Follower 已连接
+- `peers=4` → 四个 Follower 已连接
 - `term≥1` → 已完成至少一轮选举
 
 ### 3.3 查看 Follower 状态
@@ -108,6 +112,8 @@ id=node-1 state=Leader term=1 leader=node-1 commit=X applied=X logs=X peers=2 vo
 ```powershell
 curl http://localhost:9002/raft/stats
 curl http://localhost:9003/raft/stats
+curl http://localhost:9004/raft/stats
+curl http://localhost:9005/raft/stats
 ```
 
 预期：`state=Follower`，`leader=node-1`
@@ -141,10 +147,10 @@ http://localhost:8096/deepseek.html
 
 ### 5.1 模拟节点故障
 
-停止 node-2 和 node-3：
+五节点集群的法定票数为 3，需停止 3 个节点才会失去仲裁。停止 node-2 / node-3 / node-4：
 
 ```powershell
-docker stop raft-node-2 raft-node-3
+docker stop raft-node-2 raft-node-3 raft-node-4
 ```
 
 ### 5.2 验证仲裁丢失
@@ -153,7 +159,7 @@ docker stop raft-node-2 raft-node-3
 curl http://localhost:9001/raft/stats
 ```
 
-预期：`peers=0`（两 Follower 离线）
+预期：`peers=1`（三个 Follower 离线，仅剩 node-5）
 
 ### 5.3 前端降级横幅
 
@@ -161,7 +167,7 @@ curl http://localhost:9001/raft/stats
 
 ```
 ⚠ 系统异常 — 降级只读模式
-存活节点: 1/3 (法定票数需 ≥ 2) · 写操作已全部阻断 · 等待节点恢复
+存活节点: 2/5 (法定票数需 ≥ 3) · 写操作已全部阻断 · 等待节点恢复
 ```
 
 红色闪烁横幅，所有写操作按钮灰化不可点击。
@@ -169,7 +175,7 @@ curl http://localhost:9001/raft/stats
 ### 5.4 恢复验证
 
 ```powershell
-docker start raft-node-2 raft-node-3
+docker start raft-node-2 raft-node-3 raft-node-4
 ```
 
 等待约 10 秒，刷新前端大屏——降级横幅自动消失，按钮恢复可用。
@@ -178,22 +184,27 @@ docker start raft-node-2 raft-node-3
 
 ## 第六步：测试 API 写操作
 
-### 6.1 正常模式（3 节点全部存活）
+### 6.1 正常模式（5 节点全部存活）
 
 ```powershell
-# 注册一个模拟 GPU 节点（curl POST 示例）
+# 查询 node-1 的 Raft 状态（返回 JSON）
+# 说明：/raft/status 是只读状态端点，源码未校验 HTTP 方法，POST 与 GET 等价
 curl -X POST http://localhost:9001/raft/status
 
-# 查询资源池
+# 推荐写法：GET
 curl http://localhost:9001/raft/status
 ```
 
-### 6.2 降级模式（2 节点离线）
+> **更正（2026-10-10）**：原文将本条描述为「注册一个模拟 GPU 节点 / 查询资源池」，
+> 与本仓库源码不符——仓库中**不存在** GPU 节点或资源池 API，该命令实际只是一次
+> 只读状态查询。描述已按实况更正。
+
+### 6.2 降级模式（3 节点离线，5 节点集群失去仲裁）
 
 ```powershell
-docker stop raft-node-2 raft-node-3
+docker stop raft-node-2 raft-node-3 raft-node-4
 curl http://localhost:9001/raft/stats
-# 预期: peers=0，写操作被拒绝
+# 预期: peers=1，写操作被拒绝
 ```
 
 ---
@@ -219,8 +230,8 @@ docker-compose down -v
 # 重新构建（代码修改后）
 docker-compose up -d --build
 
-# 扩容到 5 节点（修改 docker-compose.yml 后）
-docker-compose up -d --scale node-1=1 --scale node-2=1 --scale node-3=1
+# 启动全部 5 个节点（docker-compose.yml 已内置 node-1 ~ node-5，无需再扩容）
+docker-compose up -d
 ```
 
 ---
@@ -235,6 +246,10 @@ docker-compose up -d --scale node-1=1 --scale node-2=1 --scale node-3=1
 | node-2 HTTP | 9000 | 9002 | API / 健康检查 |
 | node-3 gRPC | 9502 | 9502 | Raft 共识通信 |
 | node-3 HTTP | 9000 | 9003 | API / 健康检查 |
+| node-4 gRPC | 9604 | 9604 | Raft 共识通信 |
+| node-4 HTTP | 9000 | 9104 | API / 健康检查 |
+| node-5 gRPC | 9605 | 9605 | Raft 共识通信 |
+| node-5 HTTP | 9000 | 9105 | API / 健康检查 |
 | frontend | 80 | 8096 | 前端大屏 |
 
 ---
@@ -261,9 +276,13 @@ docker logs raftkv-frontend  # 检查 nginx 日志
 
 ---
 
-## 3 节点 → 5 节点扩容
+## 附：3 节点 → 5 节点扩容（历史）
 
-修改 `docker-compose.yml`，新增 `node-4` 和 `node-5`：
+> **注（2026-10-10）**：`docker-compose.yml` 现**已内置 5 个节点**（node-1 ~ node-5，
+> node-4/node-5 的 gRPC 端口为 9604/9605、HTTP 宿主机端口为 9104/9105），
+> 因此本节无需再执行，仅作历史记录保留。
+
+若确需自行把 3 节点配置扩展到 5 节点，需在 `docker-compose.yml` 中新增 `node-4` 和 `node-5`：
 
 ```yaml
   node-4:
