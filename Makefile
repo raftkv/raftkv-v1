@@ -89,12 +89,14 @@ build-all: build build-arm64 build-linux ## 编译所有平台
 # =============================================================================
 # 运行
 # =============================================================================
+# 语义未验证 target — 详见本 target 配方内注释与 verify/v-REPAIR2/ 报告
 .PHONY: run
 run: build ## 单节点运行（开发模式）
 # 语义未验证: '-config' flag 与 'config.example.yaml' 在本仓库中均不存在
 	@echo "启动单节点..."
 	./bin/$(APP_NAME) -config config.example.yaml -id 1
 
+# 语义未验证 target — 详见本 target 配方内注释与 verify/v-REPAIR2/ 报告
 .PHONY: test-cluster
 test-cluster: build ## 单机 3 节点测试集群
 # 语义未验证: '-test-cluster' flag 在本仓库中不存在
@@ -153,6 +155,7 @@ docker-status: ## 查看集群状态
 # =============================================================================
 # 代码生成
 # =============================================================================
+# 语义未验证 target — 详见本 target 配方内注释与 verify/v-REPAIR2/ 报告
 .PHONY: proto
 proto: ## 生成 protobuf Go 代码
 # 语义未验证: 'proto/control_center.proto' 在本仓库中不存在（仅有 proto/raftkv.proto）
