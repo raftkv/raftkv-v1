@@ -28,6 +28,20 @@ dir *.go Dockerfile docker-compose.yml
 
 ## 第二步：构建并启动集群
 
+```text
+┌──────────────────────────────────────────────────────┐
+│ ⚠ 生产集群正在运行                                    │
+│ 本命令会重建镜像并可能                                │
+│ 触发 tag 重定向 + 旧镜像 GC                           │
+│ (2026-10-08 事故实录,                                 │
+│  详见 verify/v-IMG1/)                                 │
+│ 执行前须用户显式授权                                  │
+└──────────────────────────────────────────────────────┘
+```
+> 注：`verify/v-IMG1/` 为审计取证目录（本地留存，不在本仓库内）；
+> 其结论为：该次 `--build` 使 `raftkit-gateway:v1` 的 tag 重定向到新镜像 ID，
+> 旧镜像清单对象被回收，容器仍以旧层运行。
+
 ### 2.1 环境变量说明（2026-10-10 更正）
 
 > **⚠ 更正**：根目录 `docker-compose.yml` 已为每个节点**内置**所需环境变量
@@ -55,6 +69,11 @@ dir *.go Dockerfile docker-compose.yml
 ```
 
 ### 2.2 构建并启动
+
+> ⚠ **高危命令**：`--build` 会重建镜像。若 compose 中某服务**同时**写了 `image:` 与
+> `build:`，`--build` 会生成新镜像并把该 **tag 重定向到新镜像 ID**，旧镜像随即失去引用、
+> 可能被内容存储回收（GC），**不可按 ID 恢复**。2026-10-08 事故实录详见
+> `verify/v-IMG1/`（本地审计取证目录，不在本仓库内）。**执行前须用户显式授权。**
 
 ```powershell
 docker-compose up -d --build
@@ -147,6 +166,10 @@ http://localhost:8096/deepseek.html
 
 ### 5.1 模拟节点故障
 
+> ⚠ **高危命令**：`docker stop` 会**中断正在运行的同名节点**。若本机此前已运行过本
+> compose（端口 9001-9005 / 9500-9505 被占用即为标志），该命令会直接停掉那批容器。
+> **执行前须确认目标非在运行的生产集群，并取得用户显式授权。**
+
 五节点集群的法定票数为 3，需停止 3 个节点才会失去仲裁。停止 node-2 / node-3 / node-4：
 
 ```powershell
@@ -202,6 +225,7 @@ curl http://localhost:9001/raft/status
 ### 6.2 降级模式（3 节点离线，5 节点集群失去仲裁）
 
 ```powershell
+# ⚠ 高危：会中断同名在运行节点，执行前须用户显式授权
 docker stop raft-node-2 raft-node-3 raft-node-4
 curl http://localhost:9001/raft/stats
 # 预期: peers=1，写操作被拒绝
@@ -211,8 +235,11 @@ curl http://localhost:9001/raft/stats
 
 ## 常用命令速查
 
+> ⚠ **以下标 `[高危]` 的命令会改变本机 Docker 状态**（停止/删除容器、重建镜像、删除数据卷）；
+> 若本机已存在在运行集群，执行前须用户显式授权。
+
 ```powershell
-# 查看所有容器状态
+# 查看所有容器状态（只读）
 docker-compose ps
 
 # 查看节点 1 日志
@@ -221,16 +248,16 @@ docker logs -f raft-node-1
 # 查看所有节点日志
 docker-compose logs -f
 
-# 停止集群
+# [高危] 停止并移除容器与网络
 docker-compose down
 
-# 停止并删除数据卷
+# [高危·最高] 停止、移除容器，并**删除数据卷**（WAL 数据一并丢失，不可恢复）
 docker-compose down -v
 
-# 重新构建（代码修改后）
+# [高危] 重新构建（代码修改后）；见第二步顶部警示——可能触发 tag 重定向 + 旧镜像 GC
 docker-compose up -d --build
 
-# 启动全部 5 个节点（docker-compose.yml 已内置 node-1 ~ node-5，无需再扩容）
+# [高危] 启动全部 5 个节点（已内置 node-1 ~ node-5，无需再扩容）；同名容器已存在时会被替换
 docker-compose up -d
 ```
 
@@ -257,16 +284,19 @@ docker-compose up -d
 ## 故障排查
 
 **容器启动失败：**
+> ⚠ **高危**：下列 `down` 与 `up -d --build` 会移除容器并重建镜像，
+> 见第二步顶部警示。执行前须用户显式授权。
+
 ```powershell
-docker-compose logs node-1    # 查看具体错误
-docker-compose down            # 清理
-docker-compose up -d --build   # 重建
+docker-compose logs node-1    # 查看具体错误（只读）
+docker-compose down            # [高危] 移除容器与网络
+docker-compose up -d --build   # [高危] 重建镜像（可能触发 tag 重定向 + 旧镜像 GC）
 ```
 
 **端口被占用：**
 ```powershell
 netstat -ano | findstr :9500   # 查找占用进程
-taskkill /PID <PID> /F         # 终止占用
+taskkill /PID <PID> /F         # [高危] 强制终止进程；误杀会导致其他服务中断
 ```
 
 **前端大屏不显示：**
@@ -317,6 +347,11 @@ docker logs raftkv-frontend  # 检查 nginx 日志
     networks:
       - raftkv-net
 ```
+
+> ⚠ **注意**：上面示例中每个服务**同时**写了 `build: .` 与 `image: raftkit-gateway:v1`。
+> 一旦对该 compose 执行 `up -d --build`，该 tag 会被**重定向到新构建的镜像 ID**，
+> 原先该 tag 指向的镜像将失去引用并可能被 GC 回收。若要保留原镜像，请先
+> `docker tag` 另存一个独立标签，或为 `build:` 指定不同 tag。
 
 同时更新 node-1/node-2/node-3 的 PEERS 环境变量，加入 node-4 和 node-5。
 
