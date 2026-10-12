@@ -96,11 +96,19 @@ func findLeader(host string) (string, int64, string, error) {
 }
 
 func main() {
-	target := flag.String("target", "172.38.3.147", "目标主机IP(用于找Leader)")
+	target := flag.String("target", "", "目标主机IP(必填；须显式指定，无默认值)")
 	grpcPort := flag.String("grpc", "", "gRPC端口(留空则自动从Leader状态获取)")
 	total := flag.Int("total", 100000, "总写入请求数")
 	concurrency := flag.Int("concurrency", 50, "并发goroutine数")
 	flag.Parse()
+
+	// 必填校验：不提供任何默认主机，避免在源码中固化具体部署地址。
+	if *target == "" {
+		fmt.Fprintln(os.Stderr, "[失败] 须显式指定 -target <主机IP>；本工具不提供默认目标主机。")
+		fmt.Fprintln(os.Stderr, "       示例: write_tester -target 127.0.0.1 -total 100000")
+		flag.Usage()
+		os.Exit(2)
+	}
 
 	minDurUs.Store(1 << 62)
 
