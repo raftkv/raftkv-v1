@@ -2,7 +2,7 @@
 
 [![License: AGPLv3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
 [![Go Version](https://img.shields.io/badge/Go-1.24+-00ADD8.svg)](https://go.dev/)
-[![Version](https://img.shields.io/badge/version-v1.0.0-orange.svg)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v1.0--rc-orange.svg)](CHANGELOG.md)
 
 RaftKV is a distributed key-value store built on a Raft consensus engine with
 SM4-encrypted WAL storage, snapshot-based log compaction, and pipeline-optimized
@@ -536,29 +536,28 @@ Test execution: `go test ./... -skip TestRealGRPCConnectivity`
   retain the original proto package name `raftkv`. gRPC service paths use
   `/raftkv.RaftService/*` — this is a proto-level identifier, not a security
   concern. Renaming requires `protoc` to regenerate the `.pb.go` files. (RL-07)
-- **pprof**: Not integrated into the gateway binary. Performance profiling uses
-  the container-internal endpoint at `127.0.0.1:9600/debug/pprof`.
 - **TestRealGRPCConnectivity**: Requires a running gRPC server; excluded from
-  automated test runs via the `-skip` flag.
-- **Makefile (known issue)**: the repository `Makefile` is **currently broken** —
-  a large number of characters were replaced by non-ASCII look-alikes (e.g. the
-  U+2212 minus sign) and shell variable references (`$`) were lost, so its
-  targets do not expand correctly. **Do not rely on `make` targets.** Use the
-  explicit commands documented in this README instead:
+automated test runs via the `-skip` flag.
+- **Makefile (resolved)**: the repository `Makefile` **had been broken** — a large
+number of characters had been replaced by non-ASCII look-alikes (e.g. the U+2212
+minus sign) and shell variable references (`$`) were lost, so its targets did not
+expand correctly. **This has been repaired**: the file is now valid and its targets
+expand correctly (20 targets; no variant characters; `$` references restored).
+`make <target>` is usable again. The explicit commands below remain valid as
+always-available alternatives:
 
-  ```bash
-  go build ./...                                          # build
-  go test . -skip TestRealGRPCConnectivity -count=1        # unit tests
-  python3 tests/contracts/regression_gate.py \
-    --regression tests/contracts/regression.yaml \
-    --verdict tests/evidence/run/verdict.json              # regression gate
-  ```
-
-  (Repair tracked separately; see the project issue tracker.)
+```bash
+go build ./...                                          # build
+go test . -skip TestRealGRPCConnectivity -count=1        # unit tests
+python3 tests/contracts/regression_gate.py \
+  --regression tests/contracts/regression.yaml \
+  --verdict tests/evidence/run/verdict.json              # regression gate
+```
 - **pprof**: profiling endpoint is served by the gateway binary itself on
   `127.0.0.1:9600/debug/pprof` (imported in `main.go`); it is bound to loopback
   only and is not exposed outside the container/host.
-- **API stability**: v1.0.0 is the first stable release. The API is considered
+- **API stability**: `v1.0-rc` is the first public release candidate (the only tag
+in this repository is `v1.0-rc`). The API is considered
   stable; breaking changes will follow semantic versioning.
 
 ---

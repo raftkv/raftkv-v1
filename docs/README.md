@@ -1,6 +1,6 @@
 # RaftKV — 确定性共识引擎
 
-> v1.0.0 Performance Sandbox
+> v1.0-rc Performance Sandbox
 > 日期: 2026-09-13
 > 口径修订: 2026-10-10（TPS/P99 对齐主 README；审计判例数对齐 CONTRIBUTING）
 

@@ -98,4 +98,4 @@ legacy:
   description: "batch29 及之前存量留证未按 schema 格式，标记 legacy 保留原格式"
   marker: "legacy"
   conversion: "batch30 任务四将 batch29 复合场景存量留证补转 schema 格式"
- 禁止: "禁伪造——存量留证无法回溯转换时保留原格式+标记 legacy，不伪造 schema 字段"
+  禁止: "禁伪造——存量留证无法回溯转换时保留原格式+标记 legacy，不伪造 schema 字段"

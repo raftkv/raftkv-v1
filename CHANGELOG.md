@@ -7,13 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## Version Strategy
 
-- **v1.0.0**: First stable public release. API is considered stable; breaking
+- **v1.0-rc**: First public release candidate (repository tag: `v1.0-rc`). API is
+considered stable; breaking
   changes will follow semantic versioning.
 - **0.x releases**: Pre-stable API. Breaking changes allowed in minor bumps.
 - **Internal history**: This project underwent internal iteration prior to
   open-sourcing. Open-source versioning starts from v0.5.0.
 
-## [v1.0.0] - 2026-10-06
+## [v1.0-rc] - 2026-10-06
 
 ### Added
 
@@ -27,7 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Image name unified** to `raftkit-gateway:v1` across all compose files and documentation
-- **Version badge** updated from v0.5.1 to v1.0.0
+- **Version badge** updated from v0.5.1 to v1.0-rc
 - **Internal designations purged**: all internal project names and personal identifiers
   replaced with neutral terms
 - `deploy.env.example` image name updated from `raftkv-v26:ci-gate` to `raftkit-gateway:v1`

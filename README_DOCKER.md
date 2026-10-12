@@ -48,27 +48,46 @@ dir *.go Dockerfile docker-compose.yml
 > （`NODE_ID` / `GRPC_PORT` / `HTTP_PORT` / `LICENSE_FAIL_MODE: "closed"` /
 > `WAL_PATH: "/tmp/raft.wal"` / `PEERS`），**其中并没有 `SM4_KEY`**。
 > Docker Compose **不会**把宿主机环境变量自动透传进容器，因此在**本（根
-> compose）轨道**下执行 `export SM4_KEY=...` **对容器不生效**——
-> `SM4_KEY` 属于『当前该 compose 轨道不适用』项。
-> 需要自定义密钥时，请直接编辑 `docker-compose.yml` 对应服务的 `environment:`
-> 段加入 `SM4_KEY: "<32位hex>"`，再重新 `up -d`。
+> compose）轨道**下执行 `export SM4_KEY=...` **对容器不生效**。
+>
+> **⚠ 高危（2026-10-12 更正）**：`SM4_KEY` 是**该轨道的必需项**，此前把它记为
+> 『该 compose 轨道不适用』**是错的**。程序在启动早期**无条件**读取该变量
+> （`main.go` → `loadSM4KeyFromEnv()`）：**取值为空时立即 `log.Fatalf` 以非零码
+> 退出（fail-closed）**，且该校验发生在 license 校验**之前**，与是否提供 license
+> 无关。因此在**未补齐该变量的根 compose 轨道**上直接 `up -d`，5 个节点容器会
+> **启动即退出**，并因 `restart: always` 反复重启——本文档第三、五步的健康检查与
+> 集群状态命令将**全部失败**。
+>
+> 补正方式（二选一，均须**编辑文件**而非在此 export）：
+> 1. 在 `docker-compose.yml` 每个节点的 `environment:` 段加入
+>    `SM4_KEY: "<32位hex>"`（生成：`openssl rand -hex 16`）；或
+> 2. 改用 [`examples/docker-compose-quickstart.yml`](examples/docker-compose-quickstart.yml)
+>    —— 该文件已为 5 个节点**显式写入**公开测试密钥 `SM4_KEY`，开箱可运行。
 >
 > **同时须知（实况）**：该 compose 把 `LICENSE_FAIL_MODE` 硬编码为 `"closed"`
-> 且**未挂载任何 license 目录** ⇒ 无有效 license 时进程按 fail-closed 拒绝启动，
+> 且**未挂载任何 license 目录** ⇒ 无有效 license 时进程同样按 fail-closed 拒绝启动，
 > 而服务 `restart: always` 会使其**反复重启**。若只想做评估/只读演示，请改用
 > [`examples/docker-compose-quickstart.yml`](examples/docker-compose-quickstart.yml)
 > （`LICENSE_FAIL_MODE=open`，无需 license），或按
 > [README 生产部署](README.md#5-node-docker-compose-production)
 > 用 `tests/deploy/deploy.env` 提供 license。
 
-本轨道**无需在宿主机设置任何环境变量**：
+本轨道**无需在宿主机 `export` 任何环境变量**（宿主机变量不会透传进容器）；
+所有变量以 `docker-compose.yml` 的 `environment:` 段为准：
 
 ```powershell
-# 无需 export：所有变量已在 docker-compose.yml 的 environment: 内定义
-# 如需切换模式，请编辑该文件（而不是在此 export）
+# 无需 export：docker compose 不会把宿主机环境变量透传进容器
+# 变量请编辑 docker-compose.yml 的 environment: 段（含 SM4_KEY，见 2.1 警示块）
+# 仅用 example 一键跑通：  docker compose -f examples/docker-compose-quickstart.yml up -d
 ```
 
 ### 2.2 构建并启动
+
+> **⚠ 启动前置条件（务必先补钥）**：在根 compose 轨道上 `up -d` 之前，必须先在
+> `docker-compose.yml` 每个节点的 `environment:` 段补入 `SM4_KEY: "<32位hex>"`
+> （见 2.1 警示块）。**缺失 `SM4_KEY` 时进程会在启动早期 fail-closed 退出**，
+> 表现为容器不断重启、健康检查全部失败。若不想改文件，请改用
+> `examples/docker-compose-quickstart.yml`（已内置公开测试密钥，开箱可运行）。
 
 > ⚠ **高危命令**：`--build` 会重建镜像。若 compose 中某服务**同时**写了 `image:` 与
 > `build:`，`--build` 会生成新镜像并把该 **tag 重定向到新镜像 ID**，旧镜像随即失去引用、
@@ -103,9 +122,11 @@ docker-compose up -d --build
 curl http://localhost:9001/health/live
 curl http://localhost:9002/health/live
 curl http://localhost:9003/health/live
-curl http://localhost:9004/health/live
-curl http://localhost:9005/health/live
+curl http://localhost:9104/health/live
+curl http://localhost:9105/health/live
 ```
+> 注：node-4 / node-5 的 HTTP 宿主机端口为 **9104 / 9105**（gRPC 为 9604 / 9605），
+> 与 `docker-compose.yml` 内的端口映射一致；node-1~node-3 为 9001/9002/9003。
 
 预期：五个节点均返回 `OK`
 
@@ -131,8 +152,8 @@ id=node-1 state=Leader term=1 leader=node-1 commit=X applied=X logs=X peers=4 vo
 ```powershell
 curl http://localhost:9002/raft/stats
 curl http://localhost:9003/raft/stats
-curl http://localhost:9004/raft/stats
-curl http://localhost:9005/raft/stats
+curl http://localhost:9104/raft/stats
+curl http://localhost:9105/raft/stats
 ```
 
 预期：`state=Follower`，`leader=node-1`
@@ -167,7 +188,8 @@ http://localhost:8096/deepseek.html
 ### 5.1 模拟节点故障
 
 > ⚠ **高危命令**：`docker stop` 会**中断正在运行的同名节点**。若本机此前已运行过本
-> compose（端口 9001-9005 / 9500-9505 被占用即为标志），该命令会直接停掉那批容器。
+> compose（端口 9001-9003 / 9104 / 9105 与 9500-9502 / 9604 / 9605 被占用即为标志），
+> 该命令会直接停掉那批容器。
 > **执行前须确认目标非在运行的生产集群，并取得用户显式授权。**
 
 五节点集群的法定票数为 3，需停止 3 个节点才会失去仲裁。停止 node-2 / node-3 / node-4：
@@ -314,20 +336,24 @@ docker logs raftkv-frontend  # 检查 nginx 日志
 
 若确需自行把 3 节点配置扩展到 5 节点，需在 `docker-compose.yml` 中新增 `node-4` 和 `node-5`：
 
+> **⚠ 示例须知**：下面每个服务的 `environment:` 段都**必须包含 `SM4_KEY`**
+> （下方以注释行标出）。缺该变量时容器启动即 fail-closed 退出 —— 详见 2.1 警示块。
+
 ```yaml
-  node-4:
-    build: .
-    image: raftkit-gateway:v1
-    container_name: raft-node-4
-    restart: always
-    environment:
-      - NODE_ID=node-4
-      - GRPC_PORT=9503
-      - HTTP_PORT=9000
-      - PEERS=node-1=raft-node-1:9500,node-2=raft-node-2:9501,node-3=raft-node-3:9502,node-5=raft-node-5:9504
-    ports:
-      - "9503:9503"
-      - "9004:9000"
+node-4:
+build: .
+image: raftkit-gateway:v1
+container_name: raft-node-4
+restart: always
+environment:
+- NODE_ID=node-4
+- GRPC_PORT=9604
+- HTTP_PORT=9000
+# SM4_KEY: "<32位hex>"   # ★ 必需：缺失则启动即 fail-closed 退出（openssl rand -hex 16）
+- PEERS=node-1=raft-node-1:9500,node-2=raft-node-2:9501,node-3=raft-node-3:9502,node-5=raft-node-5:9605
+ports:
+- "9604:9604"
+- "9104:9000"
     networks:
       - raftkv-net
 
@@ -337,13 +363,14 @@ docker logs raftkv-frontend  # 检查 nginx 日志
     container_name: raft-node-5
     restart: always
     environment:
-      - NODE_ID=node-5
-      - GRPC_PORT=9504
-      - HTTP_PORT=9000
-      - PEERS=node-1=raft-node-1:9500,node-2=raft-node-2:9501,node-3=raft-node-3:9502,node-4=raft-node-4:9503
-    ports:
-      - "9504:9504"
-      - "9005:9000"
+- NODE_ID=node-5
+- GRPC_PORT=9605
+- HTTP_PORT=9000
+# SM4_KEY: "<32位hex>"   # ★ 必需：缺失则启动即 fail-closed 退出（openssl rand -hex 16）
+- PEERS=node-1=raft-node-1:9500,node-2=raft-node-2:9501,node-3=raft-node-3:9502,node-4=raft-node-4:9604
+ports:
+- "9605:9605"
+- "9105:9000"
     networks:
       - raftkv-net
 ```

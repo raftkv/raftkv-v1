@@ -35,11 +35,20 @@
 - **证据**: raft_storage.go Snapshot()方法
 - **处置建议**: 改用io.Copy流式写入, 或限制快照大小
 
-### P3-2: gateway二进制无pprof端点
-- **描述**: gateway HTTP服务未注册net/http/pprof, 无法运行时性能分析
-- **来源**: v16深测 (LEDGER #70), P2项
-- **证据**: audit_workspace/deep_v16/ (问题清单)
-- **处置建议**: 加pprof路由(可配置开关, 默认关闭)
+### P3-2: gateway二进制无pprof端点 —— ★ 已解决 (2026-10-12)
+- **描述(原始登记)**: gateway HTTP服务未注册net/http/pprof, 无法运行时性能分析
+- **★ 状态: 已解决 —— 原描述与代码不符(陈旧登记)**。经 v-AUDIT1 独立复核实测:
+  `main.go:25` 已导入 `_ "net/http/pprof"`, 且 `main.go:702`
+  `go func() { _ = http.ListenAndServe("127.0.0.1:9600", nil) }()`
+  将 pprof 处理器绑定在**环回地址 9600** 端口(`nil` = `http.DefaultServeMux`,
+  `net/http/pprof` 的 init 即注册于其中)。即**该端点一直由 gateway 二进制自身提供**,
+  本条目的"无端点"结论不成立。
+- **来源**: v16深测 (LEDGER #70), 原始定级 P2项
+- **证据**: `main.go:25` · `main.go:702` ; `verify/v-AUDIT1/p3c_targeted_checks.txt`
+- **处置**: 无需加路由(建议项"加pprof路由(可配置开关)"作废)。
+  `README.md` 中原与代码冲突的一处表述(旧稿「pprof: Not integrated into the gateway
+  binary」)已于 2026-10-12 删除, 全文统一为「由 gateway 自身在 `127.0.0.1:9600` 提供,
+  仅绑定环回、不对外暴露」。
 
 ### P3-3: soak测试未达2h目标
 - **描述**: v16 soak仅12min(目标2h), 受会话时间限制
@@ -70,3 +79,11 @@
 
 > 本文件由流水线闭卷·归档执行(LEDGER #76)生成, 作为下一版本pending任务书的素材底稿.
 > 仓库状态: HEAD=0cb7443, 28面全绿, 5/5 deploy5 healthy, 常驻协议已解除.
+
+---
+
+> **2026-10-12 复检注 (v-AUDIT2)**: 上一行的"仓库状态"仅为**登记时点快照**, 不代表当前状态。
+> 当前扫描器已升级至 **v5 / 38 面**（新增 内网IP · 邮箱 · 本机绝对路径 四面; 豁免机制由
+> 「路径级整目录」收敛为「逐项精确登记」), 详见 `scripts/scan_internal.sh` 头部变更记录。
+> 本清单 P3-2 已标记为**已解决**(与代码不符的陈旧登记, 见上); 其余条目(含 LEDGER /
+> audit_workspace 等内部工作区坐标)按原裁决继续保留披露。
